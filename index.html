@@ -298,7 +298,7 @@
     <!-- ======================== LOGIC ======================== -->
     <script>
         // CONFIG
-        const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRFHR4uobxfbjzEGKOWbTzZOpVjUbd3Fg3xBz6szfc_QbKAkd1WjdwqF0IagDKHay-_qWp1f8VPhndH/pub?gid=0&single=true&output=csv";
+        const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSQGVQ28mEJ6gBvtT_O7N7sXxw61Kmw9AIbGGyhpJAnHRqh9xZ9dWUbk6w3ly_gI2782pv86GiBnLj3/pub?gid=0&single=true&output=csv";
 
         // STATE
         let methodologies = [];
@@ -333,6 +333,9 @@
                 methodologies = parseCSV(dataText);
                 isLoaded = true;
                 loaderEl.classList.add('hidden');
+                filterTypeSelect.value = '';
+                filterFormatSelect.value = '';
+                filterSizeSelect.value = '';
                 checkFiltersAndRender();
             } catch (error) {
                 console.error("Error:", error);
