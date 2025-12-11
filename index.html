@@ -8,8 +8,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+
+    <!-- Подключаем Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- Настройка Tailwind -->
     <script>
         tailwind.config = {
             theme: {
@@ -28,41 +31,94 @@
     </script>
 
     <style>
+        /* Скрытие скроллбара для слайдера */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Ограничение текста */
         .line-clamp-6 {
             display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
         }
-        .perspective-1000 { perspective: 1000px; }
+
+        /* Кастомный скроллбар для модального окна */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+        /* --- 3D КАРТОЧКИ: ИСПРАВЛЕНИЯ --- */
+
+        /* Контейнер для перспективы */
+        .perspective-container {
+            perspective: 1000px;
+        }
+
+        /* Внутренняя часть карточки - вращающаяся обертка */
         .card-inner {
-            position: relative; width: 100%; height: 100%;
-            transition: transform 0.6s; transform-style: preserve-3d; cursor: pointer;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+            cursor: pointer;
+            /* Важно для предотвращения мерцания в Safari */
+            will-change: transform;
         }
-        .card-inner.is-flipped { transform: rotateY(180deg); }
+
+        /* Класс для переворота */
+        .card-inner.is-flipped {
+            transform: rotateY(180deg);
+        }
+
+        /* Лицевая и обратная стороны */
         .card-front, .card-back {
-            position: absolute; width: 100%; height: 100%;
-            -webkit-backface-visibility: hidden; backface-visibility: hidden;
-            border-radius: 0.75rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden; /* Safari */
+            backface-visibility: hidden;
+            border-radius: 0.75rem; /* rounded-xl */
+            /* КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: overflow: hidden предотвращает скролл внутри карточки */
+            overflow: hidden;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
-        /* ИЗМЕНЕНО: Фон стал бордовым, текст белым, убрана рамка */
+
+        /* Лицевая сторона */
         .card-front {
             background-color: #871b33;
             color: white;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transform: rotateY(0deg); /* Явное указание начального состояния */
+            z-index: 2;
         }
+
+        /* Обратная сторона */
         .card-back {
-            background-color: #871b33; color: white; transform: rotateY(180deg);
-            padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between;
+            background-color: #871b33;
+            color: white;
+            transform: rotateY(180deg);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            z-index: 1;
         }
+
+        /* Анимации UI */
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         .animate-fade-in { animation: fadeIn 0.2s ease-out; }
         .animate-scale-in { animation: scaleIn 0.3s ease-out; }
+
+        /* Анимация закрытой колоды */
         .locked-deck-card { transition: transform 0.3s ease; }
-        .locked-deck-container:hover .locked-deck-card:nth-child(1) { transform: rotate(-5deg) translateX(-10px); }
-        .locked-deck-container:hover .locked-deck-card:nth-child(2) { transform: rotate(5deg) translateX(10px); }
+        .locked-deck-container:hover .locked-deck-card:nth-child(1) { transform: rotate(-6deg) translateX(-12px); }
+        .locked-deck-container:hover .locked-deck-card:nth-child(2) { transform: rotate(6deg) translateX(12px); }
+
+        /* Лоадер */
         .loader {
             border: 4px solid #f3f3f3; border-top: 4px solid #871b33;
             border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;
@@ -72,17 +128,20 @@
 </head>
 
 <body class="bg-gray-50 text-slate-800 flex flex-col min-h-screen">
-
+<main>
     <nav class="bg-white shadow-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-center h-16 items-center">
-                <span class="font-bold text-2xl text-bordeaux-800 tracking-tight">MethodCards</span>
+                <span class="font-bold text-2xl text-bordeaux-800 tracking-tight flex items-center gap-2">
+                    <!-- Иконка карт -->
+                    MethodCards
+                </span>
             </div>
         </div>
     </nav>
 
-    <header class="bg-white">
-        <div class="max-w-7xl mx-auto py-16 px-4 sm:py-24 sm:px-6 lg:px-8 text-center">
+    <header class="bg-white border-b border-gray-100">
+        <div class="max-w-7xl mx-auto py-12 px-4 sm:py-20 sm:px-6 lg:px-8 text-center">
             <h1 class="text-4xl font-extrabold text-bordeaux-900 sm:text-5xl sm:tracking-tight lg:text-6xl">
                 Интерактивная колода педагогических приемов
             </h1>
@@ -92,19 +151,15 @@
         </div>
     </header>
 
-    <section id="main-block" class="py-16 bg-bordeaux-50 scroll-mt-16 overflow-hidden flex-grow">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="main-block" class="py-12 bg-bordeaux-50 scroll-mt-16 overflow-hidden flex-grow flex flex-col">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-grow flex flex-col">
 
-            <div class="text-center mb-12">
-                <h2 class="text-3xl font-bold text-gray-900">Подобрать прием</h2>
-                <p class="mt-2 text-gray-600">Выберите параметры для поиска методик.</p>
-            </div>
-
-            <div class="bg-white p-6 rounded-xl shadow-md max-w-4xl mx-auto mb-12 border border-gray-100">
+            <!-- Фильтры -->
+            <div class="bg-white p-6 rounded-xl shadow-md max-w-4xl mx-auto w-full mb-10 border border-gray-100 relative z-30">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Тип занятия</label>
-                        <select id="filter-type" class="filter-select block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-bordeaux-500 focus:border-bordeaux-500 sm:text-sm rounded-md border bg-gray-50">
+                        <select id="filter-type" class="block w-full pl-3 pr-10 py-2.5 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-bordeaux-500 focus:border-bordeaux-500 sm:text-sm rounded-lg border bg-gray-50 transition-shadow">
                             <option value="" selected>Любой</option>
                             <option value="lecture">Лекция</option>
                             <option value="seminar">Семинар</option>
@@ -113,7 +168,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Формат</label>
-                        <select id="filter-format" class="filter-select block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-bordeaux-500 focus:border-bordeaux-500 sm:text-sm rounded-md border bg-gray-50">
+                        <select id="filter-format" class="block w-full pl-3 pr-10 py-2.5 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-bordeaux-500 focus:border-bordeaux-500 sm:text-sm rounded-lg border bg-gray-50 transition-shadow">
                             <option value="" selected>Любой</option>
                             <option value="online">Онлайн</option>
                             <option value="offline">Оффлайн</option>
@@ -121,7 +176,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Категория</label>
-                        <select id="filter-category" class="filter-select block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-bordeaux-500 focus:border-bordeaux-500 sm:text-sm rounded-md border bg-gray-50">
+                        <select id="filter-category" class="block w-full pl-3 pr-10 py-2.5 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-bordeaux-500 focus:border-bordeaux-500 sm:text-sm rounded-lg border bg-gray-50 transition-shadow">
                             <option value="" selected>Любая</option>
                             <option value="involvement">Активизация вовлечённости</option>
                             <option value="relations">Отношения "преподаватель - студенты"</option>
@@ -133,40 +188,60 @@
                 </div>
             </div>
 
-            <div id="results-container" class="min-h-[420px] flex justify-center items-center relative">
-                <div id="loader" class="absolute z-30 flex flex-col items-center">
+            <!-- Область контента -->
+            <div id="results-container" class="relative flex-grow min-h-[450px] flex justify-center items-center">
+
+                <!-- Загрузчик -->
+                <div id="loader" class="absolute z-30 flex flex-col items-center p-6 bg-white bg-opacity-90 rounded-xl shadow-lg">
                     <div class="loader mb-4"></div>
-                    <span class="text-bordeaux-800 font-medium">Загрузка...</span>
+                    <span class="text-bordeaux-800 font-medium animate-pulse">Загрузка карточек...</span>
                 </div>
 
-                <div id="locked-deck" class="locked-deck-container relative w-64 h-80 cursor-not-allowed z-20 hidden">
-                    <div class="locked-deck-card absolute top-0 left-0 w-full h-full bg-bordeaux-800 rounded-xl shadow-xl transform rotate-3 opacity-90 border-2 border-white"></div>
-                    <div class="locked-deck-card absolute top-0 left-0 w-full h-full bg-bordeaux-800 rounded-xl shadow-xl transform -rotate-2 opacity-95 border-2 border-white"></div>
-                    <div class="locked-deck-card absolute top-0 left-0 w-full h-full bg-bordeaux-900 rounded-xl shadow-2xl flex flex-col items-center justify-center border-4 border-bordeaux-200 z-10">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-bordeaux-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                <!-- Закрытая колода (заглушка) -->
+                <div id="locked-deck" class="locked-deck-container relative w-64 h-80 cursor-default z-20 hidden">
+                    <div class="locked-deck-card absolute top-0 left-0 w-full h-full bg-bordeaux-800 rounded-xl shadow-md transform rotate-3 opacity-60 border border-white/20"></div>
+                    <div class="locked-deck-card absolute top-0 left-0 w-full h-full bg-bordeaux-800 rounded-xl shadow-lg transform -rotate-2 opacity-80 border border-white/20"></div>
+                    <div class="locked-deck-card absolute top-0 left-0 w-full h-full bg-gradient-to-br from-bordeaux-800 to-bordeaux-900 rounded-xl shadow-2xl flex flex-col items-center justify-center border-4 border-bordeaux-100 z-10 p-6 text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-bordeaux-200 mb-4 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                        <p class="text-bordeaux-100 font-medium px-6 text-center">Выберите параметры, чтобы открыть колоду</p>
+                        <p class="text-white font-bold text-lg mb-2">Начните поиск</p>
+                        <p class="text-bordeaux-200 text-sm">Выберите параметры выше, чтобы открыть подходящие методики</p>
                     </div>
                 </div>
 
-                <div id="slider-wrapper" class="hidden w-full relative group">
-                    <button id="slide-left" class="absolute left-0 top-1/2 -translate-y-1/2 -ml-2 lg:-ml-6 z-10 bg-white border border-gray-200 text-bordeaux-800 p-3 rounded-full shadow-lg hover:bg-bordeaux-50 focus:outline-none transition opacity-70 hover:opacity-100 disabled:opacity-30">
+                <!-- Слайдер с карточками -->
+                <div id="slider-wrapper" class="hidden w-full relative group max-w-6xl">
+                    <!-- Кнопка влево -->
+                    <button id="slide-left" class="absolute left-0 top-1/2 -translate-y-1/2 -ml-2 lg:-ml-10 z-40 bg-white border border-gray-200 text-bordeaux-800 p-3 rounded-full shadow-lg hover:bg-bordeaux-50 focus:outline-none transition-all opacity-0 group-hover:opacity-100 disabled:opacity-0 translate-x-4 group-hover:translate-x-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                     </button>
-                    <div id="cards-slider" class="flex overflow-x-auto gap-8 py-8 px-4 snap-x snap-mandatory scroll-smooth hide-scrollbar items-center">
-                        </div>
-                    <button id="slide-right" class="absolute right-0 top-1/2 -translate-y-1/2 -mr-2 lg:-mr-6 z-10 bg-white border border-gray-200 text-bordeaux-800 p-3 rounded-full shadow-lg hover:bg-bordeaux-50 focus:outline-none transition opacity-70 hover:opacity-100 disabled:opacity-30">
+
+                    <!-- Сам контейнер с карточками -->
+                    <div id="cards-slider" class="flex overflow-x-auto gap-8 py-10 px-4 snap-x snap-mandatory scroll-smooth hide-scrollbar items-center pb-12">
+                        <!-- Карточки будут добавлены здесь через JS -->
+                    </div>
+
+                    <!-- Кнопка вправо -->
+                    <button id="slide-right" class="absolute right-0 top-1/2 -translate-y-1/2 -mr-2 lg:-mr-10 z-40 bg-white border border-gray-200 text-bordeaux-800 p-3 rounded-full shadow-lg hover:bg-bordeaux-50 focus:outline-none transition-all opacity-0 group-hover:opacity-100 disabled:opacity-0 -translate-x-4 group-hover:translate-x-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
                     </button>
                 </div>
 
-                <div id="no-results" class="hidden text-center py-10 z-20">
-                    <p class="text-xl text-gray-500">По данным параметрам методик пока нет.</p>
+                <!-- Сообщение "Нет результатов" -->
+                <div id="no-results" class="hidden text-center py-10 z-20 bg-white p-8 rounded-xl shadow-sm border border-gray-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="text-lg font-medium text-gray-900">Ничего не найдено</p>
+                    <p class="text-gray-500">Попробуйте изменить параметры фильтра</p>
                 </div>
 
-                 <div id="error-message" class="hidden text-center py-10 z-20 text-red-600">
-                    <p class="text-xl">Не удалось загрузить данные. Попробуйте обновить страницу.</p>
+                <!-- Сообщение об ошибке -->
+                 <div id="error-message" class="hidden text-center py-10 z-20 max-w-md bg-red-50 p-6 rounded-xl border border-red-100">
+                    <p class="text-lg text-red-800 font-medium mb-2">Упс! Что-то пошло не так</p>
+                    <p class="text-sm text-red-600 mb-4">Не удалось загрузить данные из таблицы.</p>
+                    <button onclick="window.location.reload()" class="text-xs uppercase font-bold tracking-wide text-red-700 hover:text-red-900 underline">Обновить страницу</button>
                 </div>
             </div>
         </div>
@@ -191,7 +266,7 @@
         </div>
     </section>
 
-    <!-- Contact us -->
+    <!-- Футер / Контакты -->
     <section id="contacts" class="py-16 bg-gray-50 border-t border-gray-200">
         <div class="max-w-4xl mx-auto px-4 text-center">
             <h2 class="text-3xl font-bold text-gray-900 mb-6">Станьте соавтором базы знаний</h2>
@@ -201,46 +276,58 @@
                 Присылайте описание вашей методики нам на почту — мы упакуем её в формат карточки и опубликуем с указанием вашего авторства.
             </p>
 
-            <a href="mailto:anastasia.kalashnikova2022@gmail.com?subject=Новая методика&amp;body=Название методики:%0D%0AОписание:%0D%0AТип занятия:" class="inline-flex items-center justify-center px-8 py-4 border border-transparent text-lg font-medium rounded-md text-white bg-bordeaux-800 hover:bg-bordeaux-900 transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                </svg>
-                Прислать свою методику
+            <a href="mailto:anastasia.kalashnikova2022@gmail.com" class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-bordeaux-800 hover:bg-bordeaux-900 transition shadow hover:shadow-lg">
+                Написать нам
             </a>
 
-            <p class="mt-6 text-sm text-gray-400">
+             <p class="mt-6 text-sm text-gray-400">
                 Или пишите нам напрямую: <a href="mailto:anastasia.kalashnikova2022@gmail.com" class="underline hover:text-bordeaux-800 transition">anastasia.kalashnikova2022@gmail.com</a>
             </p>
         </div>
     </section>
 
-    <!-- Modal Window -->
-    <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-60 z-[100] hidden flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
-        <div class="bg-white w-full max-w-3xl max-h-[90vh] rounded-xl shadow-2xl overflow-hidden flex flex-col relative animate-scale-in">
-            <button onclick="closeModal()" class="absolute top-4 right-4 text-white hover:text-bordeaux-200 z-10 p-1 bg-black bg-opacity-20 rounded-full hover:bg-opacity-40 transition">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+    <!-- МОДАЛЬНОЕ ОКНО -->
+    <div id="modal-backdrop" class="fixed inset-0 bg-bordeaux-950/80 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300">
+        <div id="modal-content" class="bg-white w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col relative transform transition-all duration-300 scale-95 opacity-0">
+
+            <!-- Кнопка закрытия -->
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-white hover:text-bordeaux-100 z-10 p-2 bg-black/20 hover:bg-black/30 rounded-full transition focus:outline-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
-            <div class="bg-bordeaux-800 text-white p-8 flex-shrink-0 border-b-4 border-bordeaux-900">
-                <h3 id="modal-title" class="text-2xl md:text-3xl font-bold pr-8">Заголовок</h3>
-                <div class="mt-3 flex items-center text-bordeaux-200 text-sm md:text-base">
-                    <div class="h-8 w-8 rounded-full bg-bordeaux-500 flex items-center justify-center font-bold mr-3 text-white">
+
+            <!-- Шапка модального окна -->
+            <div class="bg-bordeaux-800 text-white p-8 flex-shrink-0 relative overflow-hidden">
+                <!-- Декоративный круг -->
+                <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                <div class="relative z-10">
+                    <span id="modal-category-badge" class="inline-block px-2 py-0.5 mb-3 rounded text-[10px] font-bold uppercase tracking-wider bg-white/20 text-white border border-white/20">Категория</span>
+                    <h3 id="modal-title" class="text-2xl md:text-3xl font-extrabold leading-tight pr-8">Заголовок методики</h3>
+                </div>
+            </div>
+
+            <!-- Контент модального окна -->
+            <div class="p-8 overflow-y-auto custom-scrollbar flex-grow bg-white">
+                <div class="flex items-center mb-6 pb-6 border-b border-gray-100">
+                    <div class="h-10 w-10 rounded-full bg-bordeaux-100 flex items-center justify-center text-bordeaux-700 font-bold mr-3 text-sm ring-4 ring-white shadow-sm">
                         <span id="modal-author-initial">A</span>
                     </div>
                     <div>
-                        <span class="text-xs uppercase block opacity-75">Автор методики</span>
-                        <span id="modal-author" class="font-medium text-white">Имя</span>
+                        <span class="text-xs uppercase text-gray-400 font-semibold tracking-wide">Автор методики</span>
+                        <div id="modal-author" class="font-medium text-gray-900">Имя Автора</div>
                     </div>
                 </div>
+
+                <div class="prose prose-bordeaux max-w-none">
+                    <p id="modal-desc" class="text-gray-700 text-base leading-7 whitespace-pre-wrap">Текст описания...</p>
+                </div>
             </div>
-            <div class="p-8 overflow-y-auto custom-scrollbar bg-white flex-grow">
-                <p id="modal-desc" class="text-gray-800 text-lg leading-relaxed whitespace-pre-wrap">Текст...</p>
-            </div>
+
+            <!-- Подвал модального окна -->
             <div class="bg-gray-50 p-4 border-t border-gray-200 flex justify-end">
-                <button onclick="closeModal()" class="px-5 py-2 bg-bordeaux-800 text-white rounded-lg hover:bg-bordeaux-900 transition font-medium">Закрыть</button>
+                <button onclick="closeModal()" class="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium text-sm shadow-sm">Закрыть</button>
             </div>
         </div>
     </div>
-
-    <script src="script.js" defer></script>
+</main>
 </body>
-</html>
