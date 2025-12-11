@@ -31,10 +31,7 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .line-clamp-6 {
-            display: -webkit-box;
-            -webkit-line-clamp: 6;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
+            display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
         }
         .perspective-1000 { perspective: 1000px; }
         .card-inner {
@@ -48,9 +45,12 @@
             border-radius: 0.75rem;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
+        /* ИЗМЕНЕНО: Фон стал бордовым, текст белым, убрана рамка */
         .card-front {
-            background-color: #fdf2f4; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; border: 2px solid #871b33;
+            background-color: #871b33;
+            color: white;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
         }
         .card-back {
             background-color: #871b33; color: white; transform: rotateY(180deg);
@@ -70,6 +70,7 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
+
 <body class="bg-gray-50 text-slate-800 flex flex-col min-h-screen">
 
     <nav class="bg-white shadow-sm sticky top-0 z-50">

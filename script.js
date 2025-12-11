@@ -4,14 +4,21 @@ const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSQGVQ
 // STATE
 let methodologies = [];
 let isLoaded = false;
-// Убрали 'size' из состояния
 const filters = { type: '', format: '', category: '' };
+
+// ИЗМЕНЕНО: Словарь для перевода категорий
+const categoryMap = {
+    'involvement': 'Активизация вовлечённости',
+    'relations': 'Отношения "преподаватель - студенты"',
+    'organisational': 'Организация учебного процесса',
+    'ai': 'Искусственный интеллект',
+    'progress': 'Оценка прогресса'
+};
 
 // DOM ELEMENTS
 const filterTypeSelect = document.getElementById('filter-type');
 const filterFormatSelect = document.getElementById('filter-format');
 const filterCategorySelect = document.getElementById('filter-category');
-// filterSizeSelect удален
 
 const lockedDeckEl = document.getElementById('locked-deck');
 const sliderWrapperEl = document.getElementById('slider-wrapper');
@@ -38,7 +45,6 @@ async function initApp() {
         isLoaded = true;
         loaderEl.classList.add('hidden');
 
-        // Сброс фильтров
         filterTypeSelect.value = '';
         filterFormatSelect.value = '';
         filterCategorySelect.value = '';
@@ -51,8 +57,6 @@ async function initApp() {
     }
 }
 
-// Надежный парсер CSV (RFC 4180 совместимый)
-// Обрабатывает запятые и переносы строк внутри кавычек
 function parseCSV(text) {
     const arr = [];
     let quote = false;
@@ -74,7 +78,6 @@ function parseCSV(text) {
     }
 
     if(arr.length === 0) return [];
-
     const headers = arr[0].map(h => h.trim());
     return arr.slice(1).filter(r => r.length === headers.length).map(row => {
         return headers.reduce((obj, header, i) => {
@@ -84,15 +87,9 @@ function parseCSV(text) {
     });
 }
 
-// Защита от XSS (вставка вредоносного кода через Google Таблицу)
 function escapeHtml(text) {
     if (!text) return "";
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
 // --- FILTERING ---
@@ -110,7 +107,6 @@ btnRight.addEventListener('click', () => cardsSliderEl.scrollBy({ left: 340, beh
 
 function checkFiltersAndRender() {
     if (!isLoaded) return;
-    // Убрали filters.size из проверки
     const isAtLeastOneSelected = filters.type !== '' || filters.format !== '' || filters.category !== '';
 
     if (!isAtLeastOneSelected) {
@@ -127,15 +123,12 @@ function filterAndRenderCards() {
     let filteredData = methodologies.filter(item => {
         const iType = (item.type || '').toLowerCase();
         const iFormat = (item.format || '').toLowerCase();
-        // iSize удален
         const iCategory = (item.category || '').toLowerCase();
 
         const matchType = filters.type === '' ? true : iType.includes(filters.type);
         const matchFormat = filters.format === '' ? true : iFormat.includes(filters.format);
-        // matchSize удален
         const matchCategory = filters.category === '' ? true : iCategory.includes(filters.category);
 
-        // ВАЖНОЕ ИСПРАВЛЕНИЕ: добавили matchCategory в return
         return matchType && matchFormat && matchCategory;
     });
 
@@ -157,23 +150,37 @@ function filterAndRenderCards() {
 // --- CARD CREATION ---
 function createCardElement(item) {
     const tempDiv = document.createElement('div');
-    tempDiv.className = "snap-center flex-shrink-0 w-80 h-96 perspective-1000"; // Добавили perspective
+    tempDiv.className = "snap-center flex-shrink-0 w-80 h-96 perspective-1000";
 
-    // Безопасное получение данных
     const title = escapeHtml(item.title || "Без названия");
-    const category = escapeHtml(item.category || "Общее");
+    const rawCategory = (item.category || "Общее").toLowerCase();
+
+    // ИЗМЕНЕНО: Получаем русское название из мапы или оставляем как есть
+    const categoryDisplay = categoryMap[rawCategory] || item.category || "Общее";
     const desc = escapeHtml(item.desc || "");
 
-    // ИСПРАВЛЕНИЕ: Добавлена HTML структура карточки
+    // ИЗМЕНЕНО: Новая верстка карточки
+    // - categoryDisplay сверху
+    // - text-white, text-2xl, font-extrabold для заголовка
+    // - фон уже задан в CSS (.card-front)
     tempDiv.innerHTML = `
         <div class="card-inner">
-            <div class="card-front p-6 text-center">
-                <h3 class="text-xl font-bold text-bordeaux-900 mb-2 line-clamp-6">${title}</h3>
-                <span class="inline-block px-3 py-1 bg-bordeaux-100 text-bordeaux-800 text-xs rounded-full font-medium mt-2">${category}</span>
-                <div class="mt-auto text-bordeaux-400 text-xs animate-pulse">
+            <div class="card-front p-6 text-center relative">
+                <div class="absolute top-6 left-0 w-full flex justify-center px-4">
+                     <span class="inline-block px-3 py-1 bg-white bg-opacity-10 backdrop-blur-sm border border-white border-opacity-20 text-white text-xs rounded-full font-medium shadow-sm truncate max-w-full">
+                        ${categoryDisplay}
+                    </span>
+                </div>
+
+                <h3 class="text-2xl font-extrabold text-white mb-2 line-clamp-6 mt-8 drop-shadow-md">
+                    ${title}
+                </h3>
+
+                <div class="mt-auto text-bordeaux-100 text-xs animate-pulse opacity-80">
                     Нажмите, чтобы перевернуть
                 </div>
             </div>
+
             <div class="card-back">
                 <div class="flex-grow overflow-hidden relative">
                     <div class="absolute inset-0 bg-gradient-to-b from-transparent to-bordeaux-800 pointer-events-none"></div>
@@ -189,16 +196,14 @@ function createCardElement(item) {
     const cardElement = tempDiv;
     const inner = cardElement.querySelector('.card-inner');
 
-    // Flip logic
     cardElement.addEventListener('click', function() {
         inner.classList.toggle('is-flipped');
     });
 
-    // Modal logic (STOP propagation to prevent flip)
     const viewBtn = cardElement.querySelector('.view-full-btn');
     if(viewBtn) {
         viewBtn.addEventListener('click', function(e) {
-            e.stopPropagation(); // Останавливаем всплытие
+            e.stopPropagation();
             openModal(item);
         });
     }
