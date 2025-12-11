@@ -4,13 +4,15 @@ const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSQGVQ
 // STATE
 let methodologies = [];
 let isLoaded = false;
-const filters = { type: '', format: '', size: '', category: '' };
+// Убрали 'size' из состояния
+const filters = { type: '', format: '', category: '' };
 
 // DOM ELEMENTS
 const filterTypeSelect = document.getElementById('filter-type');
 const filterFormatSelect = document.getElementById('filter-format');
-const filterSizeSelect = document.getElementById('filter-size');
 const filterCategorySelect = document.getElementById('filter-category');
+// filterSizeSelect удален
+
 const lockedDeckEl = document.getElementById('locked-deck');
 const sliderWrapperEl = document.getElementById('slider-wrapper');
 const cardsSliderEl = document.getElementById('cards-slider');
@@ -35,10 +37,12 @@ async function initApp() {
         methodologies = parseCSV(dataText);
         isLoaded = true;
         loaderEl.classList.add('hidden');
+
+        // Сброс фильтров
         filterTypeSelect.value = '';
         filterFormatSelect.value = '';
-        filterSizeSelect.value = '';
         filterCategorySelect.value = '';
+
         checkFiltersAndRender();
     } catch (error) {
         console.error("Error:", error);
@@ -47,20 +51,48 @@ async function initApp() {
     }
 }
 
+// Надежный парсер CSV (RFC 4180 совместимый)
+// Обрабатывает запятые и переносы строк внутри кавычек
 function parseCSV(text) {
-    const rows = text.split('\n').map(row => row.trim()).filter(row => row.length > 0);
-    const headers = rows[0].split(',').map(h => h.trim());
-    const result = [];
-    for (let i = 1; i < rows.length; i++) {
-        const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-        const values = rows[i].split(regex).map(val => val.replace(/^"|"$/g, '').trim());
-        if (values.length === headers.length) {
-            const obj = {};
-            headers.forEach((header, index) => obj[header] = values[index]);
-            result.push(obj);
-        }
+    const arr = [];
+    let quote = false;
+    let col = 0, row = 0;
+
+    for (let c = 0; c < text.length; c++) {
+        let cc = text[c], nc = text[c+1];
+        arr[row] = arr[row] || [];
+        arr[row][col] = arr[row][col] || '';
+
+        if (cc == '"' && quote && nc == '"') { arr[row][col] += cc; ++c; continue; }
+        if (cc == '"') { quote = !quote; continue; }
+        if (cc == ',' && !quote) { ++col; continue; }
+        if (cc == '\r' && nc == '\n' && !quote) { ++row; col = 0; ++c; continue; }
+        if (cc == '\n' && !quote) { ++row; col = 0; continue; }
+        if (cc == '\r' && !quote) { ++row; col = 0; continue; }
+
+        arr[row][col] += cc;
     }
-    return result;
+
+    if(arr.length === 0) return [];
+
+    const headers = arr[0].map(h => h.trim());
+    return arr.slice(1).filter(r => r.length === headers.length).map(row => {
+        return headers.reduce((obj, header, i) => {
+            obj[header] = row[i];
+            return obj;
+        }, {});
+    });
+}
+
+// Защита от XSS (вставка вредоносного кода через Google Таблицу)
+function escapeHtml(text) {
+    if (!text) return "";
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 // --- FILTERING ---
@@ -71,7 +103,6 @@ function handleFilterChange(key, event) {
 
 filterTypeSelect.addEventListener('change', (e) => handleFilterChange('type', e));
 filterFormatSelect.addEventListener('change', (e) => handleFilterChange('format', e));
-filterSizeSelect.addEventListener('change', (e) => handleFilterChange('size', e));
 filterCategorySelect.addEventListener('change', (e) => handleFilterChange('category', e));
 
 btnLeft.addEventListener('click', () => cardsSliderEl.scrollBy({ left: -340, behavior: 'smooth' }));
@@ -79,7 +110,8 @@ btnRight.addEventListener('click', () => cardsSliderEl.scrollBy({ left: 340, beh
 
 function checkFiltersAndRender() {
     if (!isLoaded) return;
-    const isAtLeastOneSelected = filters.type !== '' || filters.format !== '' || filters.size !== '' || filters.category !== '';
+    // Убрали filters.size из проверки
+    const isAtLeastOneSelected = filters.type !== '' || filters.format !== '' || filters.category !== '';
 
     if (!isAtLeastOneSelected) {
         lockedDeckEl.classList.remove('hidden');
@@ -95,13 +127,16 @@ function filterAndRenderCards() {
     let filteredData = methodologies.filter(item => {
         const iType = (item.type || '').toLowerCase();
         const iFormat = (item.format || '').toLowerCase();
-        const iSize = (item.size || '').toLowerCase();
+        // iSize удален
         const iCategory = (item.category || '').toLowerCase();
+
         const matchType = filters.type === '' ? true : iType.includes(filters.type);
         const matchFormat = filters.format === '' ? true : iFormat.includes(filters.format);
-        const matchSize = filters.size === '' ? true : iSize.includes(filters.size);
+        // matchSize удален
         const matchCategory = filters.category === '' ? true : iCategory.includes(filters.category);
-        return matchType && matchFormat && matchSize;
+
+        // ВАЖНОЕ ИСПРАВЛЕНИЕ: добавили matchCategory в return
+        return matchType && matchFormat && matchCategory;
     });
 
     cardsSliderEl.innerHTML = '';
@@ -122,12 +157,34 @@ function filterAndRenderCards() {
 // --- CARD CREATION ---
 function createCardElement(item) {
     const tempDiv = document.createElement('div');
-    tempDiv.className = "snap-center flex-shrink-0 w-80 h-96";
+    tempDiv.className = "snap-center flex-shrink-0 w-80 h-96 perspective-1000"; // Добавили perspective
 
-    const itemJSON = encodeURIComponent(JSON.stringify(item));
+    // Безопасное получение данных
+    const title = escapeHtml(item.title || "Без названия");
+    const category = escapeHtml(item.category || "Общее");
+    const desc = escapeHtml(item.desc || "");
 
+    // ИСПРАВЛЕНИЕ: Добавлена HTML структура карточки
     tempDiv.innerHTML = `
-`;
+        <div class="card-inner">
+            <div class="card-front p-6 text-center">
+                <h3 class="text-xl font-bold text-bordeaux-900 mb-2 line-clamp-6">${title}</h3>
+                <span class="inline-block px-3 py-1 bg-bordeaux-100 text-bordeaux-800 text-xs rounded-full font-medium mt-2">${category}</span>
+                <div class="mt-auto text-bordeaux-400 text-xs animate-pulse">
+                    Нажмите, чтобы перевернуть
+                </div>
+            </div>
+            <div class="card-back">
+                <div class="flex-grow overflow-hidden relative">
+                    <div class="absolute inset-0 bg-gradient-to-b from-transparent to-bordeaux-800 pointer-events-none"></div>
+                    <p class="text-sm leading-relaxed opacity-90 line-clamp-6">${desc}</p>
+                </div>
+                <button class="view-full-btn mt-4 w-full py-2 bg-white text-bordeaux-900 rounded-lg font-bold hover:bg-bordeaux-50 transition shadow-sm">
+                    Подробнее
+                </button>
+            </div>
+        </div>
+    `;
 
     const cardElement = tempDiv;
     const inner = cardElement.querySelector('.card-inner');
@@ -139,42 +196,39 @@ function createCardElement(item) {
 
     // Modal logic (STOP propagation to prevent flip)
     const viewBtn = cardElement.querySelector('.view-full-btn');
-    viewBtn.addEventListener('click', function(e) {
-        e.stopPropagation(); // Останавливаем всплытие, чтобы карта не перевернулась
-        openModal(item);
-    });
+    if(viewBtn) {
+        viewBtn.addEventListener('click', function(e) {
+            e.stopPropagation(); // Останавливаем всплытие
+            openModal(item);
+        });
+    }
 
     return cardElement;
 }
 
 // --- MODAL FUNCTIONS ---
 function openModal(item) {
-    modalTitle.textContent = item.title;
+    modalTitle.textContent = item.title || 'Без названия';
     modalAuthor.textContent = item.author || 'Неизвестен';
-    modalAuthorInitial.textContent = (item.author || 'A').charAt(0);
-    modalDesc.textContent = item.desc; // Text content preserves newlines via CSS whitespace-pre-wrap
+    const authorName = item.author || 'A';
+    modalAuthorInitial.textContent = authorName.charAt(0).toUpperCase();
+    modalDesc.textContent = item.desc || '';
 
     modalBackdrop.classList.remove('hidden');
-    document.body.style.overflow = 'hidden'; // Блокируем скролл основной страницы
+    document.body.style.overflow = 'hidden';
 }
 
 function closeModal() {
     modalBackdrop.classList.add('hidden');
-    document.body.style.overflow = ''; // Разблокируем скролл
+    document.body.style.overflow = '';
 }
 
-// Close on backdrop click
 modalBackdrop.addEventListener('click', function(e) {
-    if (e.target === modalBackdrop) {
-        closeModal();
-    }
+    if (e.target === modalBackdrop) closeModal();
 });
 
-// Close on Escape key
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && !modalBackdrop.classList.contains('hidden')) {
-        closeModal();
-    }
+    if (e.key === 'Escape' && !modalBackdrop.classList.contains('hidden')) closeModal();
 });
 
 initApp();
