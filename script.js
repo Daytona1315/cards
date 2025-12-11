@@ -168,57 +168,89 @@ function filterAndRenderCards() {
     });
 }
 
-// --- CARD CREATION (Cover Style) ---
+// --- CARD CREATION (Click-to-Reveal Style) ---
 function createCardElement(item) {
     const cardContainer = document.createElement('div');
 
     // UPDATED STYLES:
     // - w-72 h-96: Fixed dimensions
-    // - hover:-translate-y-2: Smooth lift effect
-    // - hover:shadow-2xl: Increased shadow on hover
-    // - transition-all duration-300 ease-out: Smooth physics
-    cardContainer.className = "snap-center flex-shrink-0 w-72 h-96 opacity-0 relative bg-bordeaux-800 rounded-2xl shadow-card hover:shadow-2xl transition-all duration-300 ease-out hover:-translate-y-2 flex flex-col overflow-hidden group cursor-pointer border border-white/10";
+    // - relative: For absolute positioning of faces
+    // - hover:-translate-y-2: Smooth lift effect for the CARD ITSELF
+    // - group: removed (not needed for isolation)
+    cardContainer.className = "snap-center flex-shrink-0 w-72 h-96 relative rounded-2xl shadow-card hover:shadow-2xl transition-all duration-300 ease-out hover:-translate-y-2 cursor-pointer";
 
     const title = escapeHtml(item.title || "Без названия");
     const rawCategory = (item.category || "Общее").toLowerCase();
     const categoryDisplay = categoryMap[rawCategory] || item.category || "Общее";
+    const desc = escapeHtml(item.desc || "");
 
-    // No description snippet in the card body anymore.
-    // It's a "Closed Deck" metaphor.
+    // Structure:
+    // 1. Front Side (Bordeaux, Title, Badge)
+    // 2. Back Side (White, Desc, Button) - Initially Hidden
     cardContainer.innerHTML = `
-        <!-- Decorative Background Elements -->
-        <div class="absolute -top-16 -right-16 w-48 h-48 bg-white/5 rounded-full blur-2xl pointer-events-none group-hover:bg-white/10 transition-colors duration-300"></div>
-        <div class="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
-
-        <!-- Card Content -->
-        <div class="relative z-10 h-full flex flex-col p-6">
+        <!-- FRONT SIDE -->
+        <div class="card-front absolute inset-0 bg-bordeaux-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center z-10">
+            <!-- Decorative circle (subtle) -->
+            <div class="absolute -top-16 -right-16 w-48 h-48 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
 
             <!-- Category Badge -->
-            <div class="w-full flex justify-center mb-6">
+            <div class="w-full flex justify-center mb-6 relative z-10">
                  <span class="inline-block px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm truncate max-w-full">
                     ${categoryDisplay}
                 </span>
             </div>
 
             <!-- Title -->
-            <div class="flex-grow flex items-center justify-center">
-                <h3 class="text-2xl font-extrabold text-white text-center leading-tight drop-shadow-lg line-clamp-5 group-hover:scale-105 transition-transform duration-300">
+            <div class="flex-grow flex items-center justify-center relative z-10">
+                <h3 class="text-2xl font-extrabold text-white text-center leading-tight drop-shadow-lg line-clamp-6">
                     ${title}
                 </h3>
             </div>
 
-            <!-- Bottom Action Indicator -->
-            <div class="mt-auto flex justify-center pt-4 opacity-70 group-hover:opacity-100 transition-opacity duration-300">
-                <div class="flex items-center gap-2 text-bordeaux-100 text-xs font-bold uppercase tracking-widest border border-white/20 px-4 py-2 rounded-full bg-black/20 group-hover:bg-white group-hover:text-bordeaux-900 transition-colors">
+            <!-- Small hint at bottom -->
+            <div class="mt-4 text-white/40 text-[10px] uppercase tracking-widest">
+                Нажмите
+            </div>
+        </div>
+
+        <!-- BACK SIDE (Initially Hidden) -->
+        <div class="card-back absolute inset-0 bg-white rounded-2xl p-6 flex flex-col hidden z-20 border-2 border-bordeaux-800">
+             <!-- Description Container (Top Half, Strict overflow) -->
+             <div class="h-[55%] w-full overflow-hidden text-sm text-gray-700 leading-relaxed mb-4 text-left">
+                ${desc}
+             </div>
+
+             <!-- Button Container (Bottom Center) -->
+             <div class="mt-auto w-full flex justify-center pb-2">
+                <button class="view-full-btn px-6 py-2.5 bg-bordeaux-800 hover:bg-bordeaux-900 text-white rounded-full font-bold text-xs uppercase tracking-wide transition-colors shadow-md flex items-center gap-2">
                     <span>Подробнее</span>
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                </div>
+                </button>
             </div>
         </div>
     `;
 
-    // Click handler for the whole card
+    // Elements
+    const frontSide = cardContainer.querySelector('.card-front');
+    const backSide = cardContainer.querySelector('.card-back');
+    const viewBtn = cardContainer.querySelector('.view-full-btn');
+
+    // Click handler for the whole card: Toggle Faces
     cardContainer.addEventListener('click', function() {
+        if (frontSide.classList.contains('hidden')) {
+            // Show Front
+            frontSide.classList.remove('hidden');
+            backSide.classList.add('hidden');
+        } else {
+            // Show Back
+            frontSide.classList.add('hidden');
+            backSide.classList.remove('hidden');
+        }
+    });
+
+    // Button handler: Open Modal (Stop Propagation to prevent flip back)
+    viewBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
         openModal(item);
     });
 
