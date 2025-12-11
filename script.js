@@ -168,48 +168,52 @@ function filterAndRenderCards() {
     });
 }
 
-// --- CARD CREATION (Static Version) ---
+// --- CARD CREATION (Cover Style) ---
 function createCardElement(item) {
     const cardContainer = document.createElement('div');
-    // Using group for hover effects on child elements
-    cardContainer.className = "snap-center flex-shrink-0 w-72 h-96 opacity-0 relative bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-300 flex flex-col overflow-hidden group cursor-pointer border border-gray-100";
+
+    // UPDATED STYLES:
+    // - w-72 h-96: Fixed dimensions
+    // - hover:-translate-y-2: Smooth lift effect
+    // - hover:shadow-2xl: Increased shadow on hover
+    // - transition-all duration-300 ease-out: Smooth physics
+    cardContainer.className = "snap-center flex-shrink-0 w-72 h-96 opacity-0 relative bg-bordeaux-800 rounded-2xl shadow-card hover:shadow-2xl transition-all duration-300 ease-out hover:-translate-y-2 flex flex-col overflow-hidden group cursor-pointer border border-white/10";
 
     const title = escapeHtml(item.title || "Без названия");
     const rawCategory = (item.category || "Общее").toLowerCase();
     const categoryDisplay = categoryMap[rawCategory] || item.category || "Общее";
-    const desc = escapeHtml(item.desc || "");
 
+    // No description snippet in the card body anymore.
+    // It's a "Closed Deck" metaphor.
     cardContainer.innerHTML = `
-        <!-- Top Section: Color & Title -->
-        <div class="h-[65%] bg-bordeaux-800 p-6 flex flex-col items-center justify-center text-center relative overflow-hidden">
-            <!-- Decorative circle -->
-            <div class="absolute -top-12 -right-12 w-32 h-32 bg-white/5 rounded-full blur-xl pointer-events-none"></div>
+        <!-- Decorative Background Elements -->
+        <div class="absolute -top-16 -right-16 w-48 h-48 bg-white/5 rounded-full blur-2xl pointer-events-none group-hover:bg-white/10 transition-colors duration-300"></div>
+        <div class="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
+
+        <!-- Card Content -->
+        <div class="relative z-10 h-full flex flex-col p-6">
 
             <!-- Category Badge -->
-            <div class="w-full flex justify-center mb-4 z-10">
-                 <span class="inline-block px-3 py-1 bg-white/20 backdrop-blur-md border border-white/30 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm truncate max-w-full">
+            <div class="w-full flex justify-center mb-6">
+                 <span class="inline-block px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm truncate max-w-full">
                     ${categoryDisplay}
                 </span>
             </div>
 
             <!-- Title -->
-            <h3 class="text-xl font-extrabold text-white leading-tight drop-shadow-md z-10 line-clamp-4">
-                ${title}
-            </h3>
-        </div>
+            <div class="flex-grow flex items-center justify-center">
+                <h3 class="text-2xl font-extrabold text-white text-center leading-tight drop-shadow-lg line-clamp-5 group-hover:scale-105 transition-transform duration-300">
+                    ${title}
+                </h3>
+            </div>
 
-        <!-- Bottom Section: Snippet & Action -->
-        <div class="h-[35%] bg-white p-5 flex flex-col justify-between">
-            <!-- Snippet -->
-            <p class="text-xs text-gray-500 line-clamp-3 leading-relaxed">
-                ${desc}
-            </p>
-
-            <!-- Button -->
-            <button class="w-full py-2 bg-bordeaux-50 hover:bg-bordeaux-100 text-bordeaux-800 rounded-lg font-bold text-xs uppercase tracking-wide transition-colors duration-200 flex items-center justify-center mt-3">
-                Подробнее
-                <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-            </button>
+            <!-- Bottom Action Indicator -->
+            <div class="mt-auto flex justify-center pt-4 opacity-70 group-hover:opacity-100 transition-opacity duration-300">
+                <div class="flex items-center gap-2 text-bordeaux-100 text-xs font-bold uppercase tracking-widest border border-white/20 px-4 py-2 rounded-full bg-black/20 group-hover:bg-white group-hover:text-bordeaux-900 transition-colors">
+                    <span>Подробнее</span>
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                </div>
+            </div>
         </div>
     `;
 
