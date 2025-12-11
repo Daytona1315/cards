@@ -38,6 +38,39 @@ const modalAuthorInitial = document.getElementById('modal-author-initial');
 const modalDesc = document.getElementById('modal-desc');
 const modalCategoryBadge = document.getElementById('modal-category-badge');
 
+// --- MARKDOWN HELPERS ---
+
+/**
+ * Превращает Markdown в безопасный HTML
+ * Использует Marked.js для парсинга и DOMPurify для защиты
+ */
+function renderMarkdown(text) {
+    if (!text) return "";
+    try {
+        // Парсим Markdown
+        const rawHtml = marked.parse(text);
+        // Очищаем от вредоносного кода (XSS)
+        return DOMPurify.sanitize(rawHtml);
+    } catch (e) {
+        console.error("Markdown parsing error:", e);
+        return escapeHtml(text); // Фолбэк на простой текст
+    }
+}
+
+/**
+ * Очищает текст от символов Markdown для превью
+ * Удаляет #, *, _ и прочие символы форматирования
+ */
+function stripMarkdown(text) {
+    if (!text) return "";
+    // Простой реплейс для основных символов Markdown
+    // Убирает заголовки, жирность, курсив, списки, ссылки
+    return text
+        .replace(/[#*_`~>\[\]]/g, '') // Убираем спецсимволы
+        .replace(/\(.*?\)/g, '')       // Убираем ссылки (url)
+        .replace(/^\s*-\s+/gm, '');    // Убираем маркеры списков
+}
+
 // --- INIT ---
 async function initApp() {
     try {
@@ -176,13 +209,14 @@ function createCardElement(item) {
     // - w-72 h-96: Fixed dimensions
     // - relative: For absolute positioning of faces
     // - hover:-translate-y-2: Smooth lift effect for the CARD ITSELF
-    // - group: removed (not needed for isolation)
     cardContainer.className = "snap-center flex-shrink-0 w-72 h-96 relative rounded-2xl shadow-card hover:shadow-2xl transition-all duration-300 ease-out hover:-translate-y-2 cursor-pointer";
 
     const title = escapeHtml(item.title || "Без названия");
     const rawCategory = (item.category || "Общее").toLowerCase();
     const categoryDisplay = categoryMap[rawCategory] || item.category || "Общее";
-    const desc = escapeHtml(item.desc || "");
+
+    // Use stripped version for preview to avoid ugly markdown symbols
+    const descPreview = stripMarkdown(item.desc || "");
 
     // Structure:
     // 1. Front Side (Bordeaux, Title, Badge)
@@ -217,7 +251,7 @@ function createCardElement(item) {
         <div class="card-back absolute inset-0 bg-white rounded-2xl p-6 flex flex-col hidden z-20 border-2 border-bordeaux-800">
              <!-- Description Container (Top Half, Strict overflow) -->
              <div class="h-[55%] w-full overflow-hidden text-sm text-gray-700 leading-relaxed mb-4 text-left">
-                ${desc}
+                ${escapeHtml(descPreview)}
              </div>
 
              <!-- Button Container (Bottom Center) -->
@@ -269,8 +303,10 @@ function openModal(item) {
     const rawCategory = (item.category || "Общее").toLowerCase();
     modalCategoryBadge.textContent = categoryMap[rawCategory] || item.category || "Общее";
 
-    // Text formatting
-    modalDesc.innerHTML = escapeHtml(item.desc || "").replace(/\n/g, '<br>');
+    // ИСПОЛЬЗУЕМ MARKDOWN RENDERER
+    // Было: modalDesc.innerHTML = escapeHtml(item.desc || "").replace(/\n/g, '<br>');
+    // Стало:
+    modalDesc.innerHTML = renderMarkdown(item.desc || "");
 
     // Show modal logic
     modalBackdrop.classList.remove('hidden');

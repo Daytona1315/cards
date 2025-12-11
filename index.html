@@ -9,8 +9,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
 
-    <!-- Подключаем Tailwind -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Подключаем Tailwind с плагином Typography -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+
+    <!-- Подключаем библиотеки для Markdown (Marked) и Санитизации (DOMPurify) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js"></script>
 
     <!-- Настройка Tailwind -->
     <script>
@@ -27,8 +31,27 @@
                     },
                     boxShadow: {
                         'card': '0 10px 30px -5px rgba(135, 27, 51, 0.15)',
-                        '2xl': '0 25px 50px -12px rgba(135, 27, 51, 0.35)', // Усиленная тень для ховера
-                    }
+                        '2xl': '0 25px 50px -12px rgba(135, 27, 51, 0.35)',
+                    },
+                    typography: (theme) => ({
+                        DEFAULT: {
+                            css: {
+                                color: theme('colors.gray.700'),
+                                a: {
+                                    color: theme('colors.bordeaux.800'),
+                                    '&:hover': {
+                                        color: theme('colors.bordeaux.600'),
+                                    },
+                                },
+                                strong: {
+                                    color: theme('colors.bordeaux.900'),
+                                },
+                                'ul > li::marker': {
+                                    color: theme('colors.bordeaux.600'),
+                                },
+                            },
+                        },
+                    }),
                 }
             }
         }
@@ -260,8 +283,9 @@
                     </div>
                 </div>
 
+                <!-- prose-bordeaux и просто prose обеспечат стилизацию Markdown -->
                 <div class="prose prose-bordeaux max-w-none">
-                    <p id="modal-desc" class="text-gray-700 text-base leading-7 whitespace-pre-wrap">Текст описания...</p>
+                    <div id="modal-desc" class="text-gray-700 text-base leading-7">Текст описания...</div>
                 </div>
             </div>
 
