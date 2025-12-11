@@ -26,8 +26,8 @@
                         }
                     },
                     boxShadow: {
-                        'card': '0 10px 30px -5px rgba(135, 27, 51, 0.3)',
-                        'card-hover': '0 20px 40px -5px rgba(135, 27, 51, 0.4)',
+                        'card': '0 10px 30px -5px rgba(135, 27, 51, 0.15)',
+                        'card-hover': '0 20px 40px -5px rgba(135, 27, 51, 0.25)',
                     }
                 }
             }
@@ -42,73 +42,14 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        .line-clamp-6 {
-            display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
+        .line-clamp-3 {
+            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
         }
 
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
-
-        /* --- ИСПРАВЛЕННАЯ 3D ЛОГИКА --- */
-
-        /* Контейнер сцены */
-        .perspective-container {
-            perspective: 1200px; /* Чуть больше перспектива для реалистичности */
-        }
-
-        /* Вращающаяся сущность */
-        .card-inner {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Пружинистый эффект */
-            transform-style: preserve-3d;
-            transform-origin: center center;
-            cursor: pointer;
-        }
-
-        /* Состояние переворота */
-        .card-inner.is-flipped {
-            transform: rotateY(180deg);
-        }
-
-        /* Общие стили сторон */
-        .card-front, .card-back {
-            position: absolute;
-            inset: 0; /* Вместо width/height 100% и top/left 0 */
-            width: 100%;
-            height: 100%;
-            -webkit-backface-visibility: hidden;
-            backface-visibility: hidden;
-            border-radius: 1rem;
-            overflow: hidden;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Лицевая сторона */
-        .card-front {
-            background-color: #871b33;
-            transform: rotateY(0deg);
-            z-index: 2;
-        }
-
-        /* Обратная сторона */
-        .card-back {
-            background-color: #ffffff; /* Белый фон для читаемости текста */
-            color: #1f2937;
-            transform: rotateY(180deg);
-            border: 2px solid #871b33; /* Бортик для стиля */
-            z-index: 1;
-        }
-
-        /* Исправление кликабельности (Bug Fix 2) */
-        /* Когда карточка перевернута, отключаем события мыши на передней стороне,
-           чтобы она не перекрывала кнопку на задней */
-        .card-inner.is-flipped .card-front {
-            pointer-events: none;
-        }
 
         /* Анимации UI */
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -325,3 +266,6 @@
         </div>
     </div>
 </main>
+<script src="script.js"></script>
+</body>
+</html>

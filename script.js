@@ -1,3 +1,5 @@
+// --- APP LOGIC ---
+
 // CONFIG
 const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSQGVQ28mEJ6gBvtT_O7N7sXxw61Kmw9AIbGGyhpJAnHRqh9xZ9dWUbk6w3ly_gI2782pv86GiBnLj3/pub?gid=0&single=true&output=csv";
 
@@ -6,7 +8,6 @@ let methodologies = [];
 let isLoaded = false;
 const filters = { type: '', format: '', category: '' };
 
-// ИЗМЕНЕНО: Словарь для перевода категорий
 const categoryMap = {
     'involvement': 'Активизация вовлечённости',
     'relations': 'Отношения "преподаватель - студенты"',
@@ -30,12 +31,14 @@ const btnRight = document.getElementById('slide-right');
 
 // Modal Elements
 const modalBackdrop = document.getElementById('modal-backdrop');
+const modalContent = document.getElementById('modal-content');
 const modalTitle = document.getElementById('modal-title');
 const modalAuthor = document.getElementById('modal-author');
 const modalAuthorInitial = document.getElementById('modal-author-initial');
 const modalDesc = document.getElementById('modal-desc');
+const modalCategoryBadge = document.getElementById('modal-category-badge');
 
-// --- APP START ---
+// --- INIT ---
 async function initApp() {
     try {
         const response = await fetch(GOOGLE_SHEET_URL);
@@ -43,7 +46,10 @@ async function initApp() {
         const dataText = await response.text();
         methodologies = parseCSV(dataText);
         isLoaded = true;
-        loaderEl.classList.add('hidden');
+
+        // Hide loader with animation
+        loaderEl.style.opacity = '0';
+        setTimeout(() => loaderEl.classList.add('hidden'), 300);
 
         filterTypeSelect.value = '';
         filterFormatSelect.value = '';
@@ -51,19 +57,20 @@ async function initApp() {
 
         checkFiltersAndRender();
     } catch (error) {
-        console.error("Error:", error);
+        console.error("Error fetching data:", error);
         loaderEl.classList.add('hidden');
         document.getElementById('error-message').classList.remove('hidden');
     }
 }
 
-function parseCSV(text) {
+// Improved CSV Parser (handles quotes better)
+function parseCSV(str) {
     const arr = [];
     let quote = false;
     let col = 0, row = 0;
 
-    for (let c = 0; c < text.length; c++) {
-        let cc = text[c], nc = text[c+1];
+    for (let c = 0; c < str.length; c++) {
+        let cc = str[c], nc = str[c + 1];
         arr[row] = arr[row] || [];
         arr[row][col] = arr[row][col] || '';
 
@@ -77,19 +84,28 @@ function parseCSV(text) {
         arr[row][col] += cc;
     }
 
-    if(arr.length === 0) return [];
+    if (arr.length === 0) return [];
+
+    // Filter out empty rows and ensure header mapping
     const headers = arr[0].map(h => h.trim());
-    return arr.slice(1).filter(r => r.length === headers.length).map(row => {
-        return headers.reduce((obj, header, i) => {
-            obj[header] = row[i];
-            return obj;
-        }, {});
-    });
+    return arr.slice(1)
+        .filter(r => r.length >= headers.length && r.some(cell => cell.trim() !== ''))
+        .map(row => {
+            return headers.reduce((obj, header, i) => {
+                obj[header] = row[i] ? row[i].trim() : '';
+                return obj;
+            }, {});
+        });
 }
 
 function escapeHtml(text) {
     if (!text) return "";
-    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 // --- FILTERING ---
@@ -102,8 +118,10 @@ filterTypeSelect.addEventListener('change', (e) => handleFilterChange('type', e)
 filterFormatSelect.addEventListener('change', (e) => handleFilterChange('format', e));
 filterCategorySelect.addEventListener('change', (e) => handleFilterChange('category', e));
 
-btnLeft.addEventListener('click', () => cardsSliderEl.scrollBy({ left: -340, behavior: 'smooth' }));
-btnRight.addEventListener('click', () => cardsSliderEl.scrollBy({ left: 340, behavior: 'smooth' }));
+// Scroll functionality
+const SCROLL_AMOUNT = 340;
+btnLeft.addEventListener('click', () => cardsSliderEl.scrollBy({ left: -SCROLL_AMOUNT, behavior: 'smooth' }));
+btnRight.addEventListener('click', () => cardsSliderEl.scrollBy({ left: SCROLL_AMOUNT, behavior: 'smooth' }));
 
 function checkFiltersAndRender() {
     if (!isLoaded) return;
@@ -141,99 +159,116 @@ function filterAndRenderCards() {
     noResultsEl.classList.add('hidden');
     sliderWrapperEl.classList.remove('hidden');
 
-    filteredData.forEach(item => {
+    // Add delay for animation effect
+    filteredData.forEach((item, index) => {
         const cardElement = createCardElement(item);
+        cardElement.style.animationDelay = `${index * 50}ms`;
+        cardElement.classList.add('animate-fade-in');
         cardsSliderEl.appendChild(cardElement);
     });
 }
 
-// --- CARD CREATION ---
+// --- CARD CREATION (Static Version) ---
 function createCardElement(item) {
-    const tempDiv = document.createElement('div');
-    tempDiv.className = "snap-center flex-shrink-0 w-80 h-96 perspective-1000";
+    const cardContainer = document.createElement('div');
+    // Using group for hover effects on child elements
+    cardContainer.className = "snap-center flex-shrink-0 w-72 h-96 opacity-0 relative bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-300 flex flex-col overflow-hidden group cursor-pointer border border-gray-100";
 
     const title = escapeHtml(item.title || "Без названия");
     const rawCategory = (item.category || "Общее").toLowerCase();
-
-    // ИЗМЕНЕНО: Получаем русское название из мапы или оставляем как есть
     const categoryDisplay = categoryMap[rawCategory] || item.category || "Общее";
     const desc = escapeHtml(item.desc || "");
 
-    // ИЗМЕНЕНО: Новая верстка карточки
-    // - categoryDisplay сверху
-    // - text-white, text-2xl, font-extrabold для заголовка
-    // - фон уже задан в CSS (.card-front)
-    tempDiv.innerHTML = `
-        <div class="card-inner">
-            <div class="card-front p-6 text-center relative">
-                <div class="absolute top-6 left-0 w-full flex justify-center px-4">
-                     <span class="inline-block px-3 py-1 bg-white bg-opacity-10 backdrop-blur-sm border border-white border-opacity-20 text-white text-xs rounded-full font-medium shadow-sm truncate max-w-full">
-                        ${categoryDisplay}
-                    </span>
-                </div>
+    cardContainer.innerHTML = `
+        <!-- Top Section: Color & Title -->
+        <div class="h-[65%] bg-bordeaux-800 p-6 flex flex-col items-center justify-center text-center relative overflow-hidden">
+            <!-- Decorative circle -->
+            <div class="absolute -top-12 -right-12 w-32 h-32 bg-white/5 rounded-full blur-xl pointer-events-none"></div>
 
-                <h3 class="text-2xl font-extrabold text-white mb-2 line-clamp-6 mt-8 drop-shadow-md">
-                    ${title}
-                </h3>
-
-                <div class="mt-auto text-bordeaux-100 text-xs animate-pulse opacity-80">
-                    Нажмите, чтобы перевернуть
-                </div>
+            <!-- Category Badge -->
+            <div class="w-full flex justify-center mb-4 z-10">
+                 <span class="inline-block px-3 py-1 bg-white/20 backdrop-blur-md border border-white/30 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm truncate max-w-full">
+                    ${categoryDisplay}
+                </span>
             </div>
 
-            <div class="card-back">
-                <div class="flex-grow overflow-hidden relative">
-                    <div class="absolute inset-0 bg-gradient-to-b from-transparent to-bordeaux-800 pointer-events-none"></div>
-                    <p class="text-sm leading-relaxed opacity-90 line-clamp-6">${desc}</p>
-                </div>
-                <button class="view-full-btn mt-4 w-full py-2 bg-white text-bordeaux-900 rounded-lg font-bold hover:bg-bordeaux-50 transition shadow-sm">
-                    Подробнее
-                </button>
-            </div>
+            <!-- Title -->
+            <h3 class="text-xl font-extrabold text-white leading-tight drop-shadow-md z-10 line-clamp-4">
+                ${title}
+            </h3>
+        </div>
+
+        <!-- Bottom Section: Snippet & Action -->
+        <div class="h-[35%] bg-white p-5 flex flex-col justify-between">
+            <!-- Snippet -->
+            <p class="text-xs text-gray-500 line-clamp-3 leading-relaxed">
+                ${desc}
+            </p>
+
+            <!-- Button -->
+            <button class="w-full py-2 bg-bordeaux-50 hover:bg-bordeaux-100 text-bordeaux-800 rounded-lg font-bold text-xs uppercase tracking-wide transition-colors duration-200 flex items-center justify-center mt-3">
+                Подробнее
+                <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            </button>
         </div>
     `;
 
-    const cardElement = tempDiv;
-    const inner = cardElement.querySelector('.card-inner');
-
-    cardElement.addEventListener('click', function() {
-        inner.classList.toggle('is-flipped');
+    // Click handler for the whole card
+    cardContainer.addEventListener('click', function() {
+        openModal(item);
     });
 
-    const viewBtn = cardElement.querySelector('.view-full-btn');
-    if(viewBtn) {
-        viewBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            openModal(item);
-        });
-    }
-
-    return cardElement;
+    return cardContainer;
 }
 
 // --- MODAL FUNCTIONS ---
 function openModal(item) {
     modalTitle.textContent = item.title || 'Без названия';
     modalAuthor.textContent = item.author || 'Неизвестен';
+
     const authorName = item.author || 'A';
     modalAuthorInitial.textContent = authorName.charAt(0).toUpperCase();
-    modalDesc.textContent = item.desc || '';
 
+    // Category mapping for modal
+    const rawCategory = (item.category || "Общее").toLowerCase();
+    modalCategoryBadge.textContent = categoryMap[rawCategory] || item.category || "Общее";
+
+    // Text formatting
+    modalDesc.innerHTML = escapeHtml(item.desc || "").replace(/\n/g, '<br>');
+
+    // Show modal logic
     modalBackdrop.classList.remove('hidden');
+    // Force reflow
+    void modalBackdrop.offsetWidth;
+
+    modalBackdrop.classList.remove('opacity-0');
+    modalContent.classList.remove('scale-95', 'opacity-0');
+    modalContent.classList.add('scale-100', 'opacity-100');
+
     document.body.style.overflow = 'hidden';
 }
 
 function closeModal() {
-    modalBackdrop.classList.add('hidden');
-    document.body.style.overflow = '';
+    // Hide animation
+    modalBackdrop.classList.add('opacity-0');
+    modalContent.classList.remove('scale-100', 'opacity-100');
+    modalContent.classList.add('scale-95', 'opacity-0');
+
+    setTimeout(() => {
+        modalBackdrop.classList.add('hidden');
+        document.body.style.overflow = '';
+    }, 300);
 }
 
+// Close on backdrop click
 modalBackdrop.addEventListener('click', function(e) {
     if (e.target === modalBackdrop) closeModal();
 });
 
+// Close on Escape key
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && !modalBackdrop.classList.contains('hidden')) closeModal();
 });
 
+// Start the app
 initApp();
