@@ -64,7 +64,6 @@ function renderMarkdown(text) {
 function stripMarkdown(text) {
     if (!text) return "";
     // Простой реплейс для основных символов Markdown
-    // Убирает заголовки, жирность, курсив, списки, ссылки
     return text
         .replace(/[#*_`~>\[\]]/g, '') // Убираем спецсимволы
         .replace(/\(.*?\)/g, '')       // Убираем ссылки (url)
@@ -201,90 +200,82 @@ function filterAndRenderCards() {
     });
 }
 
-// --- CARD CREATION (Click-to-Reveal Style) ---
+// --- CARD CREATION (3D Flip Style) ---
 function createCardElement(item) {
+    // Outer Container: Perspective scene
     const cardContainer = document.createElement('div');
-
-    // UPDATED STYLES:
-    // - w-72 h-96: Fixed dimensions
-    // - relative: For absolute positioning of faces
-    // - hover:-translate-y-2: Smooth lift effect for the CARD ITSELF
-    cardContainer.className = "snap-center flex-shrink-0 w-72 h-96 relative rounded-2xl shadow-card hover:shadow-2xl transition-all duration-300 ease-out hover:-translate-y-2 cursor-pointer";
+    // perspective-[1000px] sets the 3D depth
+    // group class allows hover effects on children
+    cardContainer.className = "snap-center flex-shrink-0 w-72 h-96 perspective-[1000px] cursor-pointer group";
 
     const title = escapeHtml(item.title || "Без названия");
     const rawCategory = (item.category || "Общее").toLowerCase();
     const categoryDisplay = categoryMap[rawCategory] || item.category || "Общее";
-
-    // Use stripped version for preview to avoid ugly markdown symbols
     const descPreview = stripMarkdown(item.desc || "");
 
-    // Structure:
-    // 1. Front Side (Bordeaux, Title, Badge)
-    // 2. Back Side (White, Desc, Button) - Initially Hidden
+    // Inner Wrapper: This is what rotates
+    // [transform-style:preserve-3d] is crucial for 3D effect
+    // transition-all duration-500 makes the flip smooth
     cardContainer.innerHTML = `
-        <!-- FRONT SIDE -->
-        <div class="card-front absolute inset-0 bg-bordeaux-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center z-10">
-            <!-- Decorative circle (subtle) -->
-            <div class="absolute -top-16 -right-16 w-48 h-48 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+        <div class="card-inner relative w-full h-full transition-all duration-500 [transform-style:preserve-3d] origin-center rounded-2xl shadow-card group-hover:shadow-2xl group-hover:-translate-y-2">
 
-            <!-- Category Badge -->
-            <div class="w-full flex justify-center mb-6 relative z-10">
-                 <span class="inline-block px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm truncate max-w-full">
-                    ${categoryDisplay}
-                </span>
+            <!-- FRONT SIDE -->
+            <!-- [backface-visibility:hidden] hides this side when rotated -->
+            <div class="absolute inset-0 w-full h-full [backface-visibility:hidden] bg-bordeaux-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center z-10 overflow-hidden">
+                <!-- Decorative circle -->
+                <div class="absolute -top-16 -right-16 w-48 h-48 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+
+                <!-- Category Badge -->
+                <div class="w-full flex justify-center mb-6 relative z-10">
+                     <span class="inline-block px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm truncate max-w-full">
+                        ${categoryDisplay}
+                    </span>
+                </div>
+
+                <!-- Title -->
+                <div class="flex-grow flex items-center justify-center relative z-10">
+                    <h3 class="text-2xl font-extrabold text-white text-center leading-tight drop-shadow-lg line-clamp-6">
+                        ${title}
+                    </h3>
+                </div>
+
+                <!-- Small hint at bottom -->
+                <div class="mt-4 text-white/40 text-[10px] uppercase tracking-widest">
+                    Нажмите
+                </div>
             </div>
 
-            <!-- Title -->
-            <div class="flex-grow flex items-center justify-center relative z-10">
-                <h3 class="text-2xl font-extrabold text-white text-center leading-tight drop-shadow-lg line-clamp-6">
-                    ${title}
-                </h3>
-            </div>
+            <!-- BACK SIDE -->
+            <!-- [transform:rotateY(180deg)] makes it face the opposite way initially -->
+            <div class="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] bg-white rounded-2xl p-6 flex flex-col z-20 border-2 border-bordeaux-800 overflow-hidden">
+                 <!-- Description Container -->
+                 <div class="h-[55%] w-full overflow-hidden text-sm text-gray-700 leading-relaxed mb-4 text-left">
+                    ${escapeHtml(descPreview)}
+                 </div>
 
-            <!-- Small hint at bottom -->
-            <div class="mt-4 text-white/40 text-[10px] uppercase tracking-widest">
-                Нажмите
-            </div>
-        </div>
-
-        <!-- BACK SIDE (Initially Hidden) -->
-        <div class="card-back absolute inset-0 bg-white rounded-2xl p-6 flex flex-col hidden z-20 border-2 border-bordeaux-800">
-             <!-- Description Container (Top Half, Strict overflow) -->
-             <div class="h-[55%] w-full overflow-hidden text-sm text-gray-700 leading-relaxed mb-4 text-left">
-                ${escapeHtml(descPreview)}
-             </div>
-
-             <!-- Button Container (Bottom Center) -->
-             <div class="mt-auto w-full flex justify-center pb-2">
-                <button class="view-full-btn px-6 py-2.5 bg-bordeaux-800 hover:bg-bordeaux-900 text-white rounded-full font-bold text-xs uppercase tracking-wide transition-colors shadow-md flex items-center gap-2">
-                    <span>Подробнее</span>
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                </button>
+                 <!-- Button Container -->
+                 <div class="mt-auto w-full flex justify-center pb-2">
+                    <button class="view-full-btn px-6 py-2.5 bg-bordeaux-800 hover:bg-bordeaux-900 text-white rounded-full font-bold text-xs uppercase tracking-wide transition-colors shadow-md flex items-center gap-2">
+                        <span>Подробнее</span>
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    </button>
+                </div>
             </div>
         </div>
     `;
 
-    // Elements
-    const frontSide = cardContainer.querySelector('.card-front');
-    const backSide = cardContainer.querySelector('.card-back');
+    const inner = cardContainer.querySelector('.card-inner');
     const viewBtn = cardContainer.querySelector('.view-full-btn');
 
-    // Click handler for the whole card: Toggle Faces
+    // Click handler: Toggle the 'rotate-y-180' class
+    // We use a Tailwind arbitrary value class for the rotation state
     cardContainer.addEventListener('click', function() {
-        if (frontSide.classList.contains('hidden')) {
-            // Show Front
-            frontSide.classList.remove('hidden');
-            backSide.classList.add('hidden');
-        } else {
-            // Show Back
-            frontSide.classList.add('hidden');
-            backSide.classList.remove('hidden');
-        }
+        inner.classList.toggle('[transform:rotateY(180deg)]');
     });
 
-    // Button handler: Open Modal (Stop Propagation to prevent flip back)
+    // Button handler: Open Modal
     viewBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
+        e.stopPropagation(); // Prevent the card from flipping back
         openModal(item);
     });
 
@@ -299,18 +290,13 @@ function openModal(item) {
     const authorName = item.author || 'A';
     modalAuthorInitial.textContent = authorName.charAt(0).toUpperCase();
 
-    // Category mapping for modal
     const rawCategory = (item.category || "Общее").toLowerCase();
     modalCategoryBadge.textContent = categoryMap[rawCategory] || item.category || "Общее";
 
-    // ИСПОЛЬЗУЕМ MARKDOWN RENDERER
-    // Было: modalDesc.innerHTML = escapeHtml(item.desc || "").replace(/\n/g, '<br>');
-    // Стало:
+    // Markdown rendering
     modalDesc.innerHTML = renderMarkdown(item.desc || "");
 
-    // Show modal logic
     modalBackdrop.classList.remove('hidden');
-    // Force reflow
     void modalBackdrop.offsetWidth;
 
     modalBackdrop.classList.remove('opacity-0');
@@ -321,7 +307,6 @@ function openModal(item) {
 }
 
 function closeModal() {
-    // Hide animation
     modalBackdrop.classList.add('opacity-0');
     modalContent.classList.remove('scale-100', 'opacity-100');
     modalContent.classList.add('scale-95', 'opacity-0');
@@ -332,15 +317,12 @@ function closeModal() {
     }, 300);
 }
 
-// Close on backdrop click
 modalBackdrop.addEventListener('click', function(e) {
     if (e.target === modalBackdrop) closeModal();
 });
 
-// Close on Escape key
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && !modalBackdrop.classList.contains('hidden')) closeModal();
 });
 
-// Start the app
 initApp();
