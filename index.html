@@ -154,7 +154,7 @@
             </div>
 
             <!-- Область контента -->
-            <div id="results-container" class="relative flex-grow min-h-[500px] flex justify-center items-center">
+            <div id="results-container" class="relative flex-grow min-h-[500px] flex flex-col justify-center items-center">
 
                 <!-- Загрузчик -->
                 <div id="loader" class="absolute z-30 flex flex-col items-center p-6 bg-white bg-opacity-95 rounded-xl shadow-lg backdrop-blur-sm">
@@ -176,7 +176,7 @@
                 </div>
 
                 <!-- Слайдер с карточками -->
-                <div id="slider-wrapper" class="hidden w-full relative group max-w-7xl px-4 md:px-12">
+                <div id="slider-wrapper" class="hidden w-full relative group max-w-7xl px-4 md:px-12 mb-8">
                     <!-- Кнопка влево -->
                     <button id="slide-left" class="absolute left-0 lg:left-2 top-1/2 -translate-y-1/2 z-40 bg-white border border-gray-200 text-bordeaux-800 p-4 rounded-full shadow-lg hover:bg-bordeaux-50 focus:outline-none transition-all opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:cursor-not-allowed hidden md:block">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
@@ -192,6 +192,14 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
                     </button>
                 </div>
+
+                <!-- Кнопка "Посмотреть списком" -->
+                <button id="view-list-btn" class="hidden relative z-20 flex items-center gap-3 bg-white border border-gray-200 px-6 py-3 rounded-full text-bordeaux-800 font-bold text-sm uppercase tracking-wide shadow-md hover:shadow-lg hover:bg-bordeaux-50 transition-all duration-300 transform hover:-translate-y-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                    Посмотреть списком
+                </button>
 
                 <!-- Сообщение "Нет результатов" -->
                 <div id="no-results" class="hidden text-center py-10 z-20 bg-white p-8 rounded-xl shadow-sm border border-gray-100 max-w-sm animate-fade-in">
@@ -251,7 +259,7 @@
         </div>
     </section>
 
-    <!-- МОДАЛЬНОЕ ОКНО -->
+    <!-- МОДАЛЬНОЕ ОКНО (ДЕТАЛИ) -->
     <div id="modal-backdrop" class="fixed inset-0 bg-bordeaux-950/80 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300 opacity-0" aria-hidden="true">
         <div id="modal-content" class="bg-white w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col relative transform transition-all duration-300 scale-95 opacity-0">
 
@@ -262,9 +270,7 @@
 
             <!-- Шапка модального окна -->
             <div class="bg-bordeaux-800 text-white p-8 flex-shrink-0 relative overflow-hidden">
-                <!-- Декоративный круг -->
                 <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
-
                 <div class="relative z-10">
                     <span id="modal-category-badge" class="inline-block px-2 py-0.5 mb-3 rounded text-[10px] font-bold uppercase tracking-wider bg-white/20 text-white border border-white/20">Категория</span>
                     <h3 id="modal-title" class="text-2xl md:text-3xl font-extrabold leading-tight pr-8">Заголовок методики</h3>
@@ -282,8 +288,6 @@
                         <div id="modal-author" class="font-medium text-gray-900">Имя Автора</div>
                     </div>
                 </div>
-
-                <!-- prose-bordeaux и просто prose обеспечат стилизацию Markdown -->
                 <div class="prose prose-bordeaux max-w-none">
                     <div id="modal-desc" class="text-gray-700 text-base leading-7">Текст описания...</div>
                 </div>
@@ -295,6 +299,26 @@
             </div>
         </div>
     </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО (СПИСОК) -->
+    <div id="modal-list-backdrop" class="fixed inset-0 bg-bordeaux-950/80 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300 opacity-0" aria-hidden="true">
+        <div id="modal-list-content" class="bg-white w-full max-w-xl max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col relative transform transition-all duration-300 scale-95 opacity-0">
+
+            <!-- Шапка списка -->
+            <div class="bg-gray-50 p-6 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-gray-900">Список методик</h3>
+                <button onclick="closeListModal()" class="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <!-- Контейнер списка -->
+            <div id="modal-list-items" class="overflow-y-auto custom-scrollbar flex-grow bg-white p-2">
+                <!-- Элементы списка будут здесь -->
+            </div>
+        </div>
+    </div>
+
 </main>
 <script src="script.js"></script>
 </body>
