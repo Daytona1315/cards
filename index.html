@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Интерактивная колода педагогических приемов для преподавателей. База знаний методик вовлечения студентов.">
     <title>Интерактивная колода педагогических приемов</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -123,7 +124,7 @@
             <div class="bg-white p-6 rounded-xl shadow-md max-w-4xl mx-auto w-full mb-10 border border-gray-100 relative z-30">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Тип занятия</label>
+                        <label for="filter-type" class="block text-sm font-medium text-gray-700 mb-2">Тип занятия</label>
                         <select id="filter-type" class="block w-full pl-3 pr-10 py-2.5 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-bordeaux-500 focus:border-bordeaux-500 sm:text-sm rounded-lg border bg-gray-50 transition-shadow hover:bg-white cursor-pointer">
                             <option value="" selected>Любой</option>
                             <option value="lecture">Лекция</option>
@@ -132,7 +133,7 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Формат</label>
+                        <label for="filter-format" class="block text-sm font-medium text-gray-700 mb-2">Формат</label>
                         <select id="filter-format" class="block w-full pl-3 pr-10 py-2.5 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-bordeaux-500 focus:border-bordeaux-500 sm:text-sm rounded-lg border bg-gray-50 transition-shadow hover:bg-white cursor-pointer">
                             <option value="" selected>Любой</option>
                             <option value="online">Онлайн</option>
@@ -140,7 +141,7 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Категория</label>
+                        <label for="filter-category" class="block text-sm font-medium text-gray-700 mb-2">Категория</label>
                         <select id="filter-category" class="block w-full pl-3 pr-10 py-2.5 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-bordeaux-500 focus:border-bordeaux-500 sm:text-sm rounded-lg border bg-gray-50 transition-shadow hover:bg-white cursor-pointer">
                             <option value="" selected>Любая</option>
                             <option value="involvement">Активизация вовлечённости</option>
@@ -178,7 +179,7 @@
                 <!-- Слайдер с карточками -->
                 <div id="slider-wrapper" class="hidden w-full relative group max-w-7xl px-4 md:px-12 mb-8">
                     <!-- Кнопка влево -->
-                    <button id="slide-left" class="absolute left-0 lg:left-2 top-1/2 -translate-y-1/2 z-40 bg-white border border-gray-200 text-bordeaux-800 p-4 rounded-full shadow-lg hover:bg-bordeaux-50 focus:outline-none transition-all opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:cursor-not-allowed hidden md:block">
+                    <button id="slide-left" aria-label="Предыдущая карточка" class="absolute left-0 lg:left-2 top-1/2 -translate-y-1/2 z-40 bg-white border border-gray-200 text-bordeaux-800 p-4 rounded-full shadow-lg hover:bg-bordeaux-50 focus:outline-none transition-all opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:cursor-not-allowed hidden md:block">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                     </button>
 
@@ -188,7 +189,7 @@
                     </div>
 
                     <!-- Кнопка вправо -->
-                    <button id="slide-right" class="absolute right-0 lg:right-2 top-1/2 -translate-y-1/2 z-40 bg-white border border-gray-200 text-bordeaux-800 p-4 rounded-full shadow-lg hover:bg-bordeaux-50 focus:outline-none transition-all opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:cursor-not-allowed hidden md:block">
+                    <button id="slide-right" aria-label="Следующая карточка" class="absolute right-0 lg:right-2 top-1/2 -translate-y-1/2 z-40 bg-white border border-gray-200 text-bordeaux-800 p-4 rounded-full shadow-lg hover:bg-bordeaux-50 focus:outline-none transition-all opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:cursor-not-allowed hidden md:block">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
                     </button>
                 </div>
@@ -264,7 +265,7 @@
         <div id="modal-content" class="bg-white w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col relative transform transition-all duration-300 scale-95 opacity-0">
 
             <!-- Кнопка закрытия -->
-            <button onclick="closeModal()" class="absolute top-4 right-4 text-white hover:text-bordeaux-100 z-10 p-2 bg-black/20 hover:bg-black/30 rounded-full transition focus:outline-none">
+            <button onclick="closeModal()" aria-label="Закрыть" class="absolute top-4 right-4 text-white hover:text-bordeaux-100 z-10 p-2 bg-black/20 hover:bg-black/30 rounded-full transition focus:outline-none">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
 
@@ -309,7 +310,7 @@
             <div class="bg-gray-50 p-6 border-b border-gray-200">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold text-gray-900">Список методик</h3>
-                    <button onclick="closeListModal()" class="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition focus:outline-none">
+                    <button onclick="closeListModal()" aria-label="Закрыть" class="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition focus:outline-none">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
