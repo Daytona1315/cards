@@ -6,7 +6,8 @@ const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSQGVQ
 // STATE
 let methodologies = [];
 let isLoaded = false;
-let returnToList = false; // Флаг для возврата в список после просмотра деталей
+let returnToList = false;
+let currentListData = []; // Храним текущий отфильтрованный набор для поиска внутри него
 const filters = { type: '', format: '', category: '' };
 
 const categoryMap = {
@@ -29,7 +30,7 @@ const noResultsEl = document.getElementById('no-results');
 const loaderEl = document.getElementById('loader');
 const btnLeft = document.getElementById('slide-left');
 const btnRight = document.getElementById('slide-right');
-const btnViewList = document.getElementById('view-list-btn'); // Новая кнопка
+const btnViewList = document.getElementById('view-list-btn');
 
 // Modal Elements (Details)
 const modalBackdrop = document.getElementById('modal-backdrop');
@@ -44,6 +45,7 @@ const modalCategoryBadge = document.getElementById('modal-category-badge');
 const modalListBackdrop = document.getElementById('modal-list-backdrop');
 const modalListContent = document.getElementById('modal-list-content');
 const modalListItems = document.getElementById('modal-list-items');
+const listSearchInput = document.getElementById('list-search-input'); // Поле поиска
 
 // --- MARKDOWN HELPERS ---
 function renderMarkdown(text) {
@@ -149,8 +151,27 @@ const SCROLL_AMOUNT = 340;
 btnLeft.addEventListener('click', () => cardsSliderEl.scrollBy({ left: -SCROLL_AMOUNT, behavior: 'smooth' }));
 btnRight.addEventListener('click', () => cardsSliderEl.scrollBy({ left: SCROLL_AMOUNT, behavior: 'smooth' }));
 
-// Открытие списка по клику на новую кнопку
 btnViewList.addEventListener('click', openListModal);
+
+// Логика поиска в списке
+listSearchInput.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+
+    // Если поиск пустой, показываем всё (в рамках текущих фильтров)
+    if (!query) {
+        renderListItems(currentListData);
+        return;
+    }
+
+    // Фильтруем currentListData
+    const searchResults = currentListData.filter(item => {
+        const title = (item.title || "").toLowerCase();
+        const desc = (item.desc || "").toLowerCase();
+        return title.includes(query) || desc.includes(query);
+    });
+
+    renderListItems(searchResults);
+});
 
 function checkFiltersAndRender() {
     if (!isLoaded) return;
@@ -160,14 +181,13 @@ function checkFiltersAndRender() {
         lockedDeckEl.classList.remove('hidden');
         sliderWrapperEl.classList.add('hidden');
         noResultsEl.classList.add('hidden');
-        btnViewList.classList.add('hidden'); // Скрываем кнопку списка
+        btnViewList.classList.add('hidden');
     } else {
         lockedDeckEl.classList.add('hidden');
         filterAndRenderCards();
     }
 }
 
-// Получение отфильтрованных данных (для повторного использования в списке)
 function getFilteredData() {
     return methodologies.filter(item => {
         const iType = (item.type || '').toLowerCase();
@@ -190,13 +210,13 @@ function filterAndRenderCards() {
     if (filteredData.length === 0) {
         sliderWrapperEl.classList.add('hidden');
         noResultsEl.classList.remove('hidden');
-        btnViewList.classList.add('hidden'); // Скрываем кнопку списка
+        btnViewList.classList.add('hidden');
         return;
     }
 
     noResultsEl.classList.add('hidden');
     sliderWrapperEl.classList.remove('hidden');
-    btnViewList.classList.remove('hidden'); // Показываем кнопку списка
+    btnViewList.classList.remove('hidden');
 
     filteredData.forEach((item, index) => {
         const cardElement = createCardElement(item);
@@ -262,13 +282,44 @@ function createCardElement(item) {
     return cardContainer;
 }
 
-// --- LIST MODAL FUNCTIONS (NEW) ---
+// --- LIST MODAL FUNCTIONS ---
 
 function openListModal() {
-    const data = getFilteredData();
+    // 1. Получаем данные (на основе внешних фильтров)
+    currentListData = getFilteredData();
+
+    // 2. Сбрасываем поиск
+    listSearchInput.value = '';
+
+    // 3. Рендерим
+    renderListItems(currentListData);
+
+    modalListBackdrop.classList.remove('hidden');
+    void modalListBackdrop.offsetWidth;
+    modalListBackdrop.classList.remove('opacity-0');
+    modalListContent.classList.remove('scale-95', 'opacity-0');
+    modalListContent.classList.add('scale-100', 'opacity-100');
+    document.body.style.overflow = 'hidden';
+
+    // Фокус на поиск для удобства
+    setTimeout(() => {
+        listSearchInput.focus();
+    }, 100);
+}
+
+// Новая функция для рендеринга (вынесена для использования в поиске)
+function renderListItems(data) {
     modalListItems.innerHTML = '';
 
-    // Рендер элементов списка
+    if (data.length === 0) {
+        modalListItems.innerHTML = `
+            <div class="p-8 text-center text-gray-500">
+                <p>Ничего не найдено</p>
+            </div>
+        `;
+        return;
+    }
+
     data.forEach(item => {
         const title = escapeHtml(item.title || "Без названия");
         const rawCategory = (item.category || "Общее").toLowerCase();
@@ -286,21 +337,13 @@ function openListModal() {
         `;
 
         div.addEventListener('click', () => {
-            // "Тактика подмены": Закрываем список, открываем детали, ставим флаг возврата
             returnToList = true;
-            closeListModal(true); // true = force immediate close (no animation delay if needed, but we keep it simple)
+            closeListModal(true);
             openModal(item);
         });
 
         modalListItems.appendChild(div);
     });
-
-    modalListBackdrop.classList.remove('hidden');
-    void modalListBackdrop.offsetWidth;
-    modalListBackdrop.classList.remove('opacity-0');
-    modalListContent.classList.remove('scale-95', 'opacity-0');
-    modalListContent.classList.add('scale-100', 'opacity-100');
-    document.body.style.overflow = 'hidden';
 }
 
 function closeListModal(immediate = false) {
@@ -308,7 +351,6 @@ function closeListModal(immediate = false) {
     modalListContent.classList.remove('scale-100', 'opacity-100');
     modalListContent.classList.add('scale-95', 'opacity-0');
 
-    // Если "мгновенно" (для свопа), можно уменьшить тайм-аут, но 300мс выглядит плавно
     setTimeout(() => {
         modalListBackdrop.classList.add('hidden');
         if (!returnToList) {
@@ -317,7 +359,7 @@ function closeListModal(immediate = false) {
     }, 300);
 }
 
-// --- DETAILS MODAL FUNCTIONS (UPDATED) ---
+// --- DETAILS MODAL FUNCTIONS (UNCHANGED) ---
 function openModal(item) {
     modalTitle.textContent = item.title || 'Без названия';
     modalAuthor.textContent = item.author || 'Неизвестен';
@@ -347,8 +389,6 @@ function closeModal() {
 
     setTimeout(() => {
         modalBackdrop.classList.add('hidden');
-
-        // ЛОГИКА ВОЗВРАТА В СПИСОК
         if (returnToList) {
             returnToList = false;
             openListModal();
@@ -358,7 +398,6 @@ function closeModal() {
     }, 300);
 }
 
-// Global Event Listeners
 modalBackdrop.addEventListener('click', function(e) {
     if (e.target === modalBackdrop) closeModal();
 });
