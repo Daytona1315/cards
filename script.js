@@ -75,102 +75,57 @@
     };
 
     // --- UTILS ---
-
     const Utils = {
-        renderMarkdown(text) {
-            if (!text) return "";
-            try {
-                // Ensure marked and DOMPurify are available globally
-                if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
-                    return this.escapeHtml(text);
-                }
-                const rawHtml = marked.parse(text);
-                return DOMPurify.sanitize(rawHtml);
-            } catch (e) {
-                console.error("Markdown parsing error:", e);
-                return this.escapeHtml(text);
-            }
+        // ... ваши существующие методы (renderMarkdown, escapeHtml и т.д.)
+
+        /**
+         * Превращает строку категорий в массив и нормализует их
+         * Пример: "ai, progress" -> ["ai", "progress"]
+         */
+        parseCategories(rawCategory) {
+            if (!rawCategory) return ["common"]; // Fallback на "Общее"
+            return rawCategory.split(',')
+                .map(cat => cat.trim().toLowerCase())
+                .filter(cat => cat.length > 0);
         },
 
-        stripMarkdown(text) {
-            if (!text) return "";
-            return text
-                .replace(/[#*_`~>\[\]]/g, '')
-                .replace(/\(.*?\)/g, '')
-                .replace(/^\s*-\s+/gm, '');
+        getCategoryDisplay(categoryKey) {
+            const normalized = (categoryKey || "common").toLowerCase();
+            return CONFIG.CATEGORY_MAP[normalized] || categoryKey || "Общее";
         },
 
-        escapeHtml(text) {
-            if (!text) return "";
-            return text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        },
+        /**
+         * Генерирует HTML для набора бейджей
+         */
+        renderBadges(categories, isDark = false) {
+            if (!Array.isArray(categories)) categories = [categories];
 
-        parseCSV(str) {
-            if (!str || str.trim().length === 0) return [];
-            const arr = [];
-            let quote = false;
-            let col = 0, row = 0;
+            const baseClass = isDark
+                ? "bg-white/10 backdrop-blur-md border border-white/20 text-white"
+                : "bg-gray-100 text-gray-500 border-gray-200 group-hover:bg-white group-hover:border-bordeaux-200 group-hover:text-bordeaux-700";
 
-            for (let c = 0; c < str.length; c++) {
-                let cc = str[c], nc = str[c + 1];
-                arr[row] = arr[row] || [];
-                arr[row][col] = arr[row][col] || '';
-
-                if (cc == '"' && quote && nc == '"') { arr[row][col] += cc; ++c; continue; }
-                if (cc == '"') { quote = !quote; continue; }
-                if (cc == ',' && !quote) { ++col; continue; }
-                if (cc == '\r' && nc == '\n' && !quote) { ++row; col = 0; ++c; continue; }
-                if (cc == '\n' && !quote) { ++row; col = 0; continue; }
-                if (cc == '\r' && !quote) { ++row; col = 0; continue; }
-
-                arr[row][col] += cc;
-            }
-
-            if (arr.length === 0) return [];
-            const headersRow = arr[0];
-            if (!headersRow || headersRow.length === 0) return [];
-
-            const headers = headersRow.map(h => h.trim());
-
-            return arr.slice(1)
-                .filter(r => r.length >= headers.length && r.some(cell => cell.trim() !== ''))
-                .map(row => {
-                    return headers.reduce((obj, header, i) => {
-                        obj[header] = row[i] ? row[i].trim() : '';
-                        return obj;
-                    }, {});
-                });
-        },
-
-        getCategoryDisplay(rawCategory) {
-            const normalized = (rawCategory || "Общее").toLowerCase();
-            return CONFIG.CATEGORY_MAP[normalized] || rawCategory || "Общее";
+            return categories.map(cat => `
+                <span class="inline-block px-2 py-1 ${baseClass} text-[10px] font-bold uppercase tracking-wider rounded border shadow-sm truncate">
+                    ${this.getCategoryDisplay(cat)}
+                </span>
+            `).join('');
         }
     };
 
     // --- HTML TEMPLATES ---
-
     const Templates = {
         card(item) {
             const title = Utils.escapeHtml(item.title || "Без названия");
-            const categoryDisplay = Utils.getCategoryDisplay(item.category);
+            const categories = Utils.parseCategories(item.category);
             const descPreview = Utils.escapeHtml(Utils.stripMarkdown(item.desc || ""));
 
             return `
             <div class="card-inner relative w-full h-full transition-transform duration-500 [transform-style:preserve-3d] origin-center shadow-card group-hover/card:shadow-2xl rounded-2xl">
-                <!-- FRONT SIDE -->
                 <div class="absolute inset-0 w-full h-full [backface-visibility:hidden] bg-bordeaux-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center z-10 overflow-hidden">
                     <div class="absolute -top-16 -right-16 w-48 h-48 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
 
-                    <div class="w-full flex justify-center mb-6 relative z-10">
-                         <span class="inline-block px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm truncate max-w-full">
-                            ${categoryDisplay}
-                        </span>
+                    <div class="w-full flex flex-wrap justify-center gap-1 mb-6 relative z-10">
+                         ${Utils.renderBadges(categories, true)}
                     </div>
 
                     <div class="flex-grow flex items-center justify-center relative z-10">
@@ -178,22 +133,16 @@
                             ${title}
                         </h3>
                     </div>
-
-                    <div class="mt-4 text-white/40 text-[10px] uppercase tracking-widest">
-                        Нажмите
-                    </div>
+                    <div class="mt-4 text-white/40 text-[10px] uppercase tracking-widest">Нажмите</div>
                 </div>
 
-                <!-- BACK SIDE -->
                 <div class="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] bg-white rounded-2xl p-6 flex flex-col z-20 border-2 border-bordeaux-800 overflow-hidden">
                      <div class="h-[55%] w-full overflow-hidden text-sm text-gray-700 leading-relaxed mb-4 text-left">
                         ${descPreview}
                      </div>
-
                      <div class="mt-auto w-full flex justify-center pb-2">
                         <button type="button" class="view-full-btn px-6 py-2.5 bg-bordeaux-800 hover:bg-bordeaux-900 text-white rounded-full font-bold text-xs uppercase tracking-wide transition-colors shadow-md flex items-center gap-2">
                             <span>Подробнее</span>
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                         </button>
                     </div>
                 </div>
@@ -203,26 +152,18 @@
 
         listItem(item) {
             const title = Utils.escapeHtml(item.title || "Без названия");
-            const categoryDisplay = Utils.getCategoryDisplay(item.category);
+            const categories = Utils.parseCategories(item.category);
 
             return `
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 group">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 group w-full">
                 <div class="pr-4">
                     <h4 class="text-gray-900 font-bold group-hover:text-bordeaux-800 transition-colors">
                         ${title}
                     </h4>
                 </div>
-                <span class="flex-shrink-0 self-start sm:self-center inline-block px-2 py-1 bg-gray-100 text-gray-500 text-[10px] font-bold uppercase tracking-wider rounded border border-gray-200 group-hover:bg-white group-hover:border-bordeaux-200 group-hover:text-bordeaux-700">
-                    ${categoryDisplay}
-                </span>
-            </div>
-            `;
-        },
-
-        emptyList() {
-            return `
-            <div class="p-8 text-center text-gray-500">
-                <p>Ничего не найдено</p>
+                <div class="flex flex-wrap gap-1 sm:justify-end shrink-0">
+                    ${Utils.renderBadges(categories, false)}
+                </div>
             </div>
             `;
         }
@@ -266,11 +207,17 @@
             return state.allData.filter(item => {
                 const iType = (item.type || '').toLowerCase();
                 const iFormat = (item.format || '').toLowerCase();
-                const iCategory = (item.category || '').toLowerCase();
+
+                // Получаем массив категорий для текущего элемента
+                const itemCategories = Utils.parseCategories(item.category);
 
                 const matchType = state.filters.type === '' ? true : iType.includes(state.filters.type);
                 const matchFormat = state.filters.format === '' ? true : iFormat.includes(state.filters.format);
-                const matchCategory = state.filters.category === '' ? true : iCategory.includes(state.filters.category);
+
+                // ПРОВЕРКА: содержит ли массив категорий карточки выбранный фильтр
+                const matchCategory = state.filters.category === ''
+                    ? true
+                    : itemCategories.includes(state.filters.category.toLowerCase());
 
                 return matchType && matchFormat && matchCategory;
             });
@@ -362,9 +309,13 @@
     const Modals = {
         openDetails(item) {
             const els = DOM.modals.details.elements;
+            const categories = Utils.parseCategories(item.category);
 
             els.title.textContent = item.title || 'Без названия';
             els.author.textContent = item.author || 'Неизвестен';
+
+            // Рендерим все бейджи в контейнер бейджей
+            els.categoryBadge.innerHTML = Utils.renderBadges(categories, false);
 
             const authorName = item.author || 'A';
             els.authorInitial.textContent = authorName.charAt(0).toUpperCase();
