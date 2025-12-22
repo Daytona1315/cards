@@ -76,14 +76,77 @@
 
     // --- UTILS ---
     const Utils = {
-        // ... ваши существующие методы (renderMarkdown, escapeHtml и т.д.)
+        // Парсинг Markdown с защитой
+        renderMarkdown(text) {
+            if (!text) return "";
+            try {
+                if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+                    return this.escapeHtml(text);
+                }
+                const rawHtml = marked.parse(text);
+                return DOMPurify.sanitize(rawHtml);
+            } catch (e) {
+                console.error("Markdown parsing error:", e);
+                return this.escapeHtml(text);
+            }
+        },
 
-        /**
-         * Превращает строку категорий в массив и нормализует их
-         * Пример: "ai, progress" -> ["ai", "progress"]
-         */
+        stripMarkdown(text) {
+            if (!text) return "";
+            return text
+                .replace(/[#*_`~>\[\]]/g, '')
+                .replace(/\(.*?\)/g, '')
+                .replace(/^\s*-\s+/gm, '');
+        },
+
+        escapeHtml(text) {
+            if (!text) return "";
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        },
+
+        parseCSV(str) {
+            if (!str || str.trim().length === 0) return [];
+            const arr = [];
+            let quote = false;
+            let col = 0, row = 0;
+
+            for (let c = 0; c < str.length; c++) {
+                let cc = str[c], nc = str[c + 1];
+                arr[row] = arr[row] || [];
+                arr[row][col] = arr[row][col] || '';
+
+                if (cc == '"' && quote && nc == '"') { arr[row][col] += cc; ++c; continue; }
+                if (cc == '"') { quote = !quote; continue; }
+                if (cc == ',' && !quote) { ++col; continue; }
+                if (cc == '\r' && nc == '\n' && !quote) { ++row; col = 0; ++c; continue; }
+                if (cc == '\n' && !quote) { ++row; col = 0; continue; }
+                if (cc == '\r' && !quote) { ++row; col = 0; continue; }
+
+                arr[row][col] += cc;
+            }
+
+            if (arr.length === 0) return [];
+            const headersRow = arr[0];
+            const headers = headersRow.map(h => h.trim());
+
+            return arr.slice(1)
+                .filter(r => r.length >= headers.length && r.some(cell => cell.trim() !== ''))
+                .map(row => {
+                    return headers.reduce((obj, header, i) => {
+                        obj[header] = row[i] ? row[i].trim() : '';
+                        return obj;
+                    }, {});
+                });
+        },
+
+        // НОВЫЕ ФУНКЦИИ ДЛЯ КАТЕГОРИЙ
         parseCategories(rawCategory) {
-            if (!rawCategory) return ["common"]; // Fallback на "Общее"
+            if (!rawCategory) return ["common"];
             return rawCategory.split(',')
                 .map(cat => cat.trim().toLowerCase())
                 .filter(cat => cat.length > 0);
@@ -94,18 +157,14 @@
             return CONFIG.CATEGORY_MAP[normalized] || categoryKey || "Общее";
         },
 
-        /**
-         * Генерирует HTML для набора бейджей
-         */
         renderBadges(categories, isDark = false) {
-            if (!Array.isArray(categories)) categories = [categories];
-
-            const baseClass = isDark
+            const categoryList = Array.isArray(categories) ? categories : [categories];
+            const themeClass = isDark
                 ? "bg-white/10 backdrop-blur-md border border-white/20 text-white"
                 : "bg-gray-100 text-gray-500 border-gray-200 group-hover:bg-white group-hover:border-bordeaux-200 group-hover:text-bordeaux-700";
 
-            return categories.map(cat => `
-                <span class="inline-block px-2 py-1 ${baseClass} text-[10px] font-bold uppercase tracking-wider rounded border shadow-sm truncate">
+            return categoryList.map(cat => `
+                <span class="inline-block px-2 py-1 ${themeClass} text-[10px] font-bold uppercase tracking-wider rounded border shadow-sm">
                     ${this.getCategoryDisplay(cat)}
                 </span>
             `).join('');
