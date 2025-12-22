@@ -1,6 +1,6 @@
 /**
- * Interactive Deck Application
- * Refactored for modularity, performance (event delegation), and maintainability.
+ * Interactive Deck Application - Optimized Version
+ * Features: Data Normalization, Debounced Search, Multiple Categories, Intersection Observer
  */
 
 (function () {
@@ -11,19 +11,21 @@
         SHEET_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSQGVQ28mEJ6gBvtT_O7N7sXxw61Kmw9AIbGGyhpJAnHRqh9xZ9dWUbk6w3ly_gI2782pv86GiBnLj3/pub?gid=0&single=true&output=csv",
         ANIMATION_DELAY_MS: 50,
         SCROLL_AMOUNT: 340,
+        SEARCH_DEBOUNCE_MS: 300,
         CATEGORY_MAP: {
             'involvement': 'Активизация вовлечённости',
             'relations': 'Отношения "преподаватель - студенты"',
             'organisational': 'Организация учебного процесса',
             'ai': 'Искусственный интеллект',
-            'progress': 'Оценка прогресса'
+            'progress': 'Оценка прогресса',
+            'common': 'Общее'
         }
     };
 
     // --- STATE MANAGEMENT ---
     const state = {
-        allData: [],
-        currentFilteredData: [], // Для поиска внутри списка
+        allData: [], // Содержит нормализованные данные
+        currentFilteredData: [],
         isLoaded: false,
         returnToList: false,
         filters: {
@@ -76,7 +78,14 @@
 
     // --- UTILS ---
     const Utils = {
-        // Парсинг Markdown с защитой
+        debounce(fn, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => fn.apply(this, args), wait);
+            };
+        },
+
         renderMarkdown(text) {
             if (!text) return "";
             try {
@@ -86,7 +95,7 @@
                 const rawHtml = marked.parse(text);
                 return DOMPurify.sanitize(rawHtml);
             } catch (e) {
-                console.error("Markdown parsing error:", e);
+                console.error("Markdown error:", e);
                 return this.escapeHtml(text);
             }
         },
@@ -101,70 +110,51 @@
 
         escapeHtml(text) {
             if (!text) return "";
-            return text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
         },
 
         parseCSV(str) {
-            if (!str || str.trim().length === 0) return [];
+            if (!str || !str.trim()) return [];
             const arr = [];
             let quote = false;
             let col = 0, row = 0;
-
             for (let c = 0; c < str.length; c++) {
                 let cc = str[c], nc = str[c + 1];
                 arr[row] = arr[row] || [];
                 arr[row][col] = arr[row][col] || '';
-
                 if (cc == '"' && quote && nc == '"') { arr[row][col] += cc; ++c; continue; }
                 if (cc == '"') { quote = !quote; continue; }
                 if (cc == ',' && !quote) { ++col; continue; }
                 if (cc == '\r' && nc == '\n' && !quote) { ++row; col = 0; ++c; continue; }
                 if (cc == '\n' && !quote) { ++row; col = 0; continue; }
-                if (cc == '\r' && !quote) { ++row; col = 0; continue; }
-
                 arr[row][col] += cc;
             }
-
-            if (arr.length === 0) return [];
-            const headersRow = arr[0];
-            const headers = headersRow.map(h => h.trim());
-
+            if (!arr.length) return [];
+            const headers = arr[0].map(h => h.trim());
             return arr.slice(1)
-                .filter(r => r.length >= headers.length && r.some(cell => cell.trim() !== ''))
-                .map(row => {
-                    return headers.reduce((obj, header, i) => {
-                        obj[header] = row[i] ? row[i].trim() : '';
-                        return obj;
-                    }, {});
-                });
+                .filter(r => r.length >= headers.length && r.some(cell => cell.trim()))
+                .map(row => headers.reduce((obj, h, i) => {
+                    obj[h] = row[i] ? row[i].trim() : '';
+                    return obj;
+                }, {}));
         },
 
-        // НОВЫЕ ФУНКЦИИ ДЛЯ КАТЕГОРИЙ
-        parseCategories(rawCategory) {
-            if (!rawCategory) return ["common"];
-            return rawCategory.split(',')
-                .map(cat => cat.trim().toLowerCase())
-                .filter(cat => cat.length > 0);
+        parseCategories(raw) {
+            if (!raw) return ['common'];
+            return raw.split(',').map(c => c.trim().toLowerCase()).filter(c => c);
         },
 
-        getCategoryDisplay(categoryKey) {
-            const normalized = (categoryKey || "common").toLowerCase();
-            return CONFIG.CATEGORY_MAP[normalized] || categoryKey || "Общее";
+        getCategoryDisplay(key) {
+            return CONFIG.CATEGORY_MAP[key] || key || CONFIG.CATEGORY_MAP.common;
         },
 
         renderBadges(categories, isDark = false) {
-            const categoryList = Array.isArray(categories) ? categories : [categories];
-            const themeClass = isDark
+            const theme = isDark
                 ? "bg-white/10 backdrop-blur-md border border-white/20 text-white"
                 : "bg-gray-100 text-gray-500 border-gray-200 group-hover:bg-white group-hover:border-bordeaux-200 group-hover:text-bordeaux-700";
-
-            return categoryList.map(cat => `
-                <span class="inline-block px-2 py-1 ${themeClass} text-[10px] font-bold uppercase tracking-wider rounded border shadow-sm">
+            return categories.map(cat => `
+                <span class="inline-block px-2 py-1 ${theme} text-[10px] font-bold uppercase tracking-wider rounded border shadow-sm">
                     ${this.getCategoryDisplay(cat)}
                 </span>
             `).join('');
@@ -174,89 +164,64 @@
     // --- HTML TEMPLATES ---
     const Templates = {
         card(item) {
-            const title = Utils.escapeHtml(item.title || "Без названия");
-            const categories = Utils.parseCategories(item.category);
-            const descPreview = Utils.escapeHtml(Utils.stripMarkdown(item.desc || ""));
-
             return `
             <div class="card-inner relative w-full h-full transition-transform duration-500 [transform-style:preserve-3d] origin-center shadow-card group-hover/card:shadow-2xl rounded-2xl">
                 <div class="absolute inset-0 w-full h-full [backface-visibility:hidden] bg-bordeaux-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center z-10 overflow-hidden">
                     <div class="absolute -top-16 -right-16 w-48 h-48 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
-
                     <div class="w-full flex flex-wrap justify-center gap-1 mb-6 relative z-10">
-                         ${Utils.renderBadges(categories, true)}
+                         ${Utils.renderBadges(item._cats, true)}
                     </div>
-
                     <div class="flex-grow flex items-center justify-center relative z-10">
-                        <h3 class="text-2xl font-extrabold text-white text-center leading-tight drop-shadow-lg line-clamp-6">
-                            ${title}
-                        </h3>
+                        <h3 class="text-2xl font-extrabold text-white text-center leading-tight drop-shadow-lg line-clamp-6">${item._safeTitle}</h3>
                     </div>
                     <div class="mt-4 text-white/40 text-[10px] uppercase tracking-widest">Нажмите</div>
                 </div>
-
                 <div class="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] bg-white rounded-2xl p-6 flex flex-col z-20 border-2 border-bordeaux-800 overflow-hidden">
-                     <div class="h-[55%] w-full overflow-hidden text-sm text-gray-700 leading-relaxed mb-4 text-left">
-                        ${descPreview}
-                     </div>
+                     <div class="h-[55%] w-full overflow-hidden text-sm text-gray-700 leading-relaxed mb-4 text-left">${item._descPreview}</div>
                      <div class="mt-auto w-full flex justify-center pb-2">
                         <button type="button" class="view-full-btn px-6 py-2.5 bg-bordeaux-800 hover:bg-bordeaux-900 text-white rounded-full font-bold text-xs uppercase tracking-wide transition-colors shadow-md flex items-center gap-2">
                             <span>Подробнее</span>
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                         </button>
                     </div>
                 </div>
-            </div>
-            `;
+            </div>`;
         },
 
         listItem(item) {
-            const title = Utils.escapeHtml(item.title || "Без названия");
-            const categories = Utils.parseCategories(item.category);
-
             return `
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 group w-full">
                 <div class="pr-4">
-                    <h4 class="text-gray-900 font-bold group-hover:text-bordeaux-800 transition-colors">
-                        ${title}
-                    </h4>
+                    <h4 class="text-gray-900 font-bold group-hover:text-bordeaux-800 transition-colors">${item._safeTitle}</h4>
                 </div>
                 <div class="flex flex-wrap gap-1 sm:justify-end shrink-0">
-                    ${Utils.renderBadges(categories, false)}
+                    ${Utils.renderBadges(item._cats, false)}
                 </div>
-            </div>
-            `;
+            </div>`;
         }
     };
 
     // --- LOGIC ---
-
     const Logic = {
         async init() {
             try {
                 const response = await fetch(CONFIG.SHEET_URL);
-                if (!response.ok) throw new Error("Network response was not ok: " + response.statusText);
                 const dataText = await response.text();
+                const rawData = Utils.parseCSV(dataText);
 
-                try {
-                    state.allData = Utils.parseCSV(dataText);
-                } catch (parseError) {
-                    console.error("Critical Parsing Error:", parseError);
-                    throw new Error("Failed to parse CSV data.");
-                }
+                // Нормализация данных для производительности
+                state.allData = rawData.map(item => ({
+                    ...item,
+                    _cats: Utils.parseCategories(item.category),
+                    _safeTitle: Utils.escapeHtml(item.title || "Без названия"),
+                    _descPreview: Utils.escapeHtml(Utils.stripMarkdown(item.desc || ""))
+                }));
 
                 state.isLoaded = true;
-
-                DOM.deck.loader.style.opacity = '0';
-                setTimeout(() => DOM.deck.loader.classList.add('hidden'), 300);
-
-                // Reset filters UI
-                DOM.filters.type.value = '';
-                DOM.filters.format.value = '';
-                DOM.filters.category.value = '';
-
+                DOM.deck.loader.classList.add('hidden');
                 this.checkFiltersAndRender();
             } catch (error) {
-                console.error("App Init Error:", error);
+                console.error("Init Error:", error);
                 DOM.deck.loader.classList.add('hidden');
                 DOM.deck.error.classList.remove('hidden');
             }
@@ -264,29 +229,16 @@
 
         getFilteredData() {
             return state.allData.filter(item => {
-                const iType = (item.type || '').toLowerCase();
-                const iFormat = (item.format || '').toLowerCase();
-
-                // Получаем массив категорий для текущего элемента
-                const itemCategories = Utils.parseCategories(item.category);
-
-                const matchType = state.filters.type === '' ? true : iType.includes(state.filters.type);
-                const matchFormat = state.filters.format === '' ? true : iFormat.includes(state.filters.format);
-
-                // ПРОВЕРКА: содержит ли массив категорий карточки выбранный фильтр
-                const matchCategory = state.filters.category === ''
-                    ? true
-                    : itemCategories.includes(state.filters.category.toLowerCase());
-
+                const matchType = !state.filters.type || (item.type || '').toLowerCase().includes(state.filters.type.toLowerCase());
+                const matchFormat = !state.filters.format || (item.format || '').toLowerCase().includes(state.filters.format.toLowerCase());
+                const matchCategory = !state.filters.category || item._cats.includes(state.filters.category.toLowerCase());
                 return matchType && matchFormat && matchCategory;
             });
         },
 
         checkFiltersAndRender() {
-            if (!state.isLoaded) return;
-            const isAtLeastOneSelected = state.filters.type !== '' || state.filters.format !== '' || state.filters.category !== '';
-
-            if (!isAtLeastOneSelected) {
+            const hasFilter = state.filters.type || state.filters.format || state.filters.category;
+            if (!hasFilter) {
                 DOM.deck.locked.classList.remove('hidden');
                 DOM.deck.wrapper.classList.add('hidden');
                 DOM.deck.noResults.classList.add('hidden');
@@ -299,8 +251,6 @@
 
         renderDeck() {
             const data = this.getFilteredData();
-
-            // Clean container
             DOM.deck.container.innerHTML = '';
 
             if (data.length === 0) {
@@ -314,94 +264,73 @@
             DOM.deck.wrapper.classList.remove('hidden');
             DOM.deck.buttons.viewList.classList.remove('hidden');
 
-            const fragment = document.createDocumentFragment();
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.remove('opacity-0', 'translate-y-4');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.1 });
 
-            data.forEach((item, index) => {
+            data.forEach((item) => {
                 const cardWrapper = document.createElement('div');
-                cardWrapper.className = "snap-center flex-shrink-0 w-72 h-96 perspective-[1000px] cursor-pointer group/card transition-transform duration-300 hover:-translate-y-2";
-                cardWrapper.style.animationDelay = `${index * CONFIG.ANIMATION_DELAY_MS}ms`;
-                cardWrapper.classList.add('animate-fade-in');
-
-                // Store item index for event delegation retrieval
+                cardWrapper.className = "snap-center flex-shrink-0 w-72 h-96 perspective-[1000px] cursor-pointer group/card transition-all duration-500 opacity-0 translate-y-4";
                 cardWrapper.dataset.index = state.allData.indexOf(item);
-
                 cardWrapper.innerHTML = Templates.card(item);
-                fragment.appendChild(cardWrapper);
+                DOM.deck.container.appendChild(cardWrapper);
+                observer.observe(cardWrapper);
             });
-
-            DOM.deck.container.appendChild(fragment);
         },
 
         renderList(data) {
             DOM.modals.list.itemsContainer.innerHTML = '';
-
             if (data.length === 0) {
-                DOM.modals.list.itemsContainer.innerHTML = Templates.emptyList();
+                DOM.modals.list.itemsContainer.innerHTML = '<div class="p-8 text-center text-gray-500">Ничего не найдено</div>';
                 return;
             }
 
             const fragment = document.createDocumentFragment();
-
             data.forEach(item => {
                 const div = document.createElement('div');
-                div.className = "p-4 border-b border-gray-100 last:border-0 hover:bg-bordeaux-50 cursor-pointer rounded-lg flex items-center justify-between group transition-colors duration-200";
+                div.className = "p-4 border-b border-gray-100 last:border-0 hover:bg-bordeaux-50 cursor-pointer rounded-lg transition-colors duration-200";
                 div.innerHTML = Templates.listItem(item);
-
-                // Store original index
-                div.dataset.index = state.allData.indexOf(item);
-
                 div.addEventListener('click', () => {
                     state.returnToList = true;
                     Modals.closeList(true);
                     Modals.openDetails(item);
                 });
-
                 fragment.appendChild(div);
             });
-
             DOM.modals.list.itemsContainer.appendChild(fragment);
         }
     };
 
     // --- MODALS ---
-
     const Modals = {
         openDetails(item) {
             const els = DOM.modals.details.elements;
-            const categories = Utils.parseCategories(item.category);
-
-            els.title.textContent = item.title || 'Без названия';
+            els.title.textContent = item._safeTitle;
             els.author.textContent = item.author || 'Неизвестен';
-
-            // Рендерим все бейджи в контейнер бейджей
-            els.categoryBadge.innerHTML = Utils.renderBadges(categories, false);
-
-            const authorName = item.author || 'A';
-            els.authorInitial.textContent = authorName.charAt(0).toUpperCase();
-
-            els.categoryBadge.textContent = Utils.getCategoryDisplay(item.category);
+            els.authorInitial.textContent = (item.author || 'A').charAt(0).toUpperCase();
+            els.categoryBadge.innerHTML = Utils.renderBadges(item._cats, false);
             els.desc.innerHTML = Utils.renderMarkdown(item.desc || "");
 
             const m = DOM.modals.details;
             m.backdrop.classList.remove('hidden');
-            void m.backdrop.offsetWidth; // Force reflow
-
-            m.backdrop.classList.remove('opacity-0');
-            m.content.classList.remove('scale-95', 'opacity-0');
-            m.content.classList.add('scale-100', 'opacity-100');
-
+            setTimeout(() => {
+                m.backdrop.classList.remove('opacity-0');
+                m.content.classList.remove('scale-95', 'opacity-0');
+            }, 10);
             document.body.style.overflow = 'hidden';
         },
 
         closeDetails() {
             const m = DOM.modals.details;
             m.backdrop.classList.add('opacity-0');
-            m.content.classList.remove('scale-100', 'opacity-100');
             m.content.classList.add('scale-95', 'opacity-0');
-
             setTimeout(() => {
                 m.backdrop.classList.add('hidden');
-
                 if (state.returnToList) {
                     state.returnToList = false;
                     this.openList();
@@ -413,45 +342,30 @@
 
         openList() {
             state.currentFilteredData = Logic.getFilteredData();
-
-            // Reset Input
             DOM.modals.list.searchInput.value = '';
-
             Logic.renderList(state.currentFilteredData);
-
             const m = DOM.modals.list;
             m.backdrop.classList.remove('hidden');
-            void m.backdrop.offsetWidth;
-            m.backdrop.classList.remove('opacity-0');
-            m.content.classList.remove('scale-95', 'opacity-0');
-            m.content.classList.add('scale-100', 'opacity-100');
-
-            document.body.style.overflow = 'hidden';
-
             setTimeout(() => {
-                m.searchInput.focus();
-            }, 100);
+                m.backdrop.classList.remove('opacity-0');
+                m.content.classList.remove('scale-95', 'opacity-0');
+            }, 10);
+            document.body.style.overflow = 'hidden';
         },
 
         closeList(immediate = false) {
             const m = DOM.modals.list;
             m.backdrop.classList.add('opacity-0');
-            m.content.classList.remove('scale-100', 'opacity-100');
             m.content.classList.add('scale-95', 'opacity-0');
-
             setTimeout(() => {
                 m.backdrop.classList.add('hidden');
-                if (!state.returnToList) {
-                    document.body.style.overflow = '';
-                }
+                if (!state.returnToList) document.body.style.overflow = '';
             }, immediate ? 0 : 300);
         }
     };
 
     // --- EVENT LISTENERS ---
-
     function setupEventListeners() {
-        // Filters
         const handleFilter = (key, e) => {
             state.filters[key] = e.target.value;
             Logic.checkFiltersAndRender();
@@ -461,88 +375,44 @@
         DOM.filters.format.addEventListener('change', (e) => handleFilter('format', e));
         DOM.filters.category.addEventListener('change', (e) => handleFilter('category', e));
 
-        // Slider Navigation
-        DOM.deck.buttons.left.addEventListener('click', () =>
-            DOM.deck.container.scrollBy({ left: -CONFIG.SCROLL_AMOUNT, behavior: 'smooth' }));
-        DOM.deck.buttons.right.addEventListener('click', () =>
-            DOM.deck.container.scrollBy({ left: CONFIG.SCROLL_AMOUNT, behavior: 'smooth' }));
+        DOM.deck.buttons.left.addEventListener('click', () => DOM.deck.container.scrollBy({ left: -CONFIG.SCROLL_AMOUNT, behavior: 'smooth' }));
+        DOM.deck.buttons.right.addEventListener('click', () => DOM.deck.container.scrollBy({ left: CONFIG.SCROLL_AMOUNT, behavior: 'smooth' }));
 
-        // Event Delegation for Cards (Performance boost)
         DOM.deck.container.addEventListener('click', (e) => {
             const cardWrapper = e.target.closest('.group\\/card');
             if (!cardWrapper) return;
-
             const inner = cardWrapper.querySelector('.card-inner');
-            const isBtn = e.target.closest('.view-full-btn');
-
-            if (isBtn) {
-                e.stopPropagation();
-                // Get item data from global store using index
-                const index = cardWrapper.dataset.index;
-                if (index !== undefined) {
-                    Modals.openDetails(state.allData[index]);
-                }
+            if (e.target.closest('.view-full-btn')) {
+                Modals.openDetails(state.allData[cardWrapper.dataset.index]);
             } else {
-                // Flip Logic
                 inner.classList.toggle('[transform:rotateY(180deg)]');
             }
         });
 
-        // View List Button
         DOM.deck.buttons.viewList.addEventListener('click', () => Modals.openList());
 
-        // Search Input in List
-        DOM.modals.list.searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase().trim();
-            if (!query) {
-                Logic.renderList(state.currentFilteredData);
-                return;
-            }
-
-            const results = state.currentFilteredData.filter(item => {
-                const title = (item.title || "").toLowerCase();
-                const desc = (item.desc || "").toLowerCase();
-                return title.includes(query) || desc.includes(query);
-            });
+        DOM.modals.list.searchInput.addEventListener('input', Utils.debounce((e) => {
+            const q = e.target.value.toLowerCase().trim();
+            const results = state.currentFilteredData.filter(item =>
+                item._safeTitle.toLowerCase().includes(q) || (item.desc || "").toLowerCase().includes(q)
+            );
             Logic.renderList(results);
-        });
+        }, CONFIG.SEARCH_DEBOUNCE_MS));
 
-        // Modals closing
-        DOM.modals.details.backdrop.addEventListener('click', (e) => {
-            if (e.target === DOM.modals.details.backdrop) Modals.closeDetails();
-        });
+        DOM.modals.details.backdrop.addEventListener('click', (e) => { if (e.target === DOM.modals.details.backdrop) Modals.closeDetails(); });
+        DOM.modals.list.backdrop.addEventListener('click', (e) => { if (e.target === DOM.modals.list.backdrop) Modals.closeList(); });
 
-        // Find close buttons inside modals using closest
-        document.addEventListener('click', (e) => {
-            // Check for close button in Details Modal
-            if (e.target.closest('#modal-content button[onclick*="closeModal"]')) {
-                Modals.closeDetails();
-            }
-            // Check for close button in List Modal
-            if (e.target.closest('#modal-list-content button[onclick*="closeListModal"]')) {
-                Modals.closeList();
-            }
-        });
+        window.closeModal = () => Modals.closeDetails();
+        window.closeListModal = () => Modals.closeList();
 
-        DOM.modals.list.backdrop.addEventListener('click', (e) => {
-            if (e.target === DOM.modals.list.backdrop) Modals.closeList();
-        });
-
-        // Keyboard support
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                if (!DOM.modals.details.backdrop.classList.contains('hidden')) Modals.closeDetails();
-                if (!DOM.modals.list.backdrop.classList.contains('hidden')) Modals.closeList();
+                Modals.closeDetails();
+                Modals.closeList();
             }
         });
     }
 
-    // Expose close functions globally for the onclick attributes in HTML
-    // Note: Ideally we remove onclick from HTML, but for compatibility with existing HTML we keep this bridge.
-    window.closeModal = () => Modals.closeDetails();
-    window.closeListModal = () => Modals.closeList();
-
-    // --- START ---
     setupEventListeners();
     Logic.init();
 
