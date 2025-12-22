@@ -206,12 +206,16 @@
             const categoryDisplay = Utils.getCategoryDisplay(item.category);
 
             return `
-            <div class="pr-4">
-                <h4 class="text-gray-900 font-bold group-hover:text-bordeaux-800 transition-colors">${title}</h4>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 group">
+                <div class="pr-4">
+                    <h4 class="text-gray-900 font-bold group-hover:text-bordeaux-800 transition-colors">
+                        ${title}
+                    </h4>
+                </div>
+                <span class="flex-shrink-0 self-start sm:self-center inline-block px-2 py-1 bg-gray-100 text-gray-500 text-[10px] font-bold uppercase tracking-wider rounded border border-gray-200 group-hover:bg-white group-hover:border-bordeaux-200 group-hover:text-bordeaux-700">
+                    ${categoryDisplay}
+                </span>
             </div>
-            <span class="flex-shrink-0 inline-block px-2 py-1 bg-gray-100 text-gray-500 text-[10px] font-bold uppercase tracking-wider rounded border border-gray-200 group-hover:bg-white group-hover:border-bordeaux-200 group-hover:text-bordeaux-700">
-                ${categoryDisplay}
-            </span>
             `;
         },
 
